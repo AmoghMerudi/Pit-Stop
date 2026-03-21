@@ -28,13 +28,7 @@ Never use abbreviations like `"S"` or `"M"`.
 
 ### DataFrames
 - Column names are `snake_case` strings
-- Required columns per module:
-
-| Module | Required columns |
-|---|---|
-| ingestion | `driver`, `compound`, `tyre_age`, `lap_time`, `stint`, `lap_number` |
-| degradation | `tyre_age`, `lap_time_delta`, `compound` |
-| rival_model | `driver`, `compound`, `tyre_age`, `position`, `gap_to_leader` |
+- For required columns per module, types, guarantees, and edge cases — see **DATA_CONTRACT.md — Internal DataFrame Contracts**
 
 ### Error handling
 - Raise `ValueError` for bad input data (wrong compound name, missing columns)

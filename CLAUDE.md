@@ -32,9 +32,12 @@ pit-stop-optimizer/
 ├── ARCHITECTURE.md
 ├── PRD.md
 ├── CONVENTIONS.md
-├── PLAN.md
 ├── TASKS.md
-└── AGENTS.md
+├── AGENTS.md
+├── DATA_CONTRACT.md   # FastF1/OpenF1 field names, types, edge cases, DataFrame contracts
+├── ERROR_CATALOG.md   # HTTP status mapping, error response shape, per-module error table
+├── TESTING.md         # pytest setup, mocking strategy, fixtures, smoke test commands
+└── DEPLOY.md          # Railway + Vercel step-by-step, env vars, CORS, cold start
 ```
 
 ## Critical Rules
@@ -79,5 +82,5 @@ npm run dev
 
 - FastF1 session load takes 10–60 seconds on first fetch — always check cache before loading
 - OpenF1 live data has ~5s latency from real-world events
-- Free-tier Railway/Render dynos spin down after inactivity — cold starts take ~30s
 - FastF1 does not provide live data — OpenF1 is the only source for current race state
+- Free-tier Railway dynos spin down after inactivity — see DEPLOY.md for cold start behaviour and mitigation

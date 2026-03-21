@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+fastf1>=3.0
+pandas
+scipy
+numpy
+requests
+pydantic
+python-dotenv
+pytest
+pytest-mock
