@@ -36,9 +36,9 @@ OpenF1 (live)    ──┬──┘                                             
 - Returns `{ undercut_window: bool, overcut_window: bool, crossover_lap: int, net_delta: float }`
 
 **`rival_model.py`**
-- Maintains a dict of `driver -> { compound, tyre_age, predicted_pit_lap }`
-- Identifies undercut threats: rivals with tyre_age > current driver and within 2s gap
-- Updates on each lap tick from ingestion layer
+- `build_driver_states()` — builds `{ driver: { compound, tyre_age, position, gap_to_leader } }` from FastF1 laps
+- `build_live_driver_states()` — same shape from OpenF1 stints/positions/intervals feeds
+- `find_undercut_threats()` — returns list of rival detail dicts for drivers behind with older tyres within 3s gap
 
 **`strategy.py`**
 - Combines pit window calc and rival model into a single recommendation
@@ -49,15 +49,27 @@ OpenF1 (live)    ──┬──┘                                             
 - Pydantic schemas for all API request/response shapes
 - Keeps FastAPI route signatures clean
 
+**`benchmarks.py`**
+- Hardcoded per-compound degradation slopes for fallback when no prior race data exists
+- `load_baseline_curves(year, round)` tries prior race via FastF1 (30s timeout), falls back to benchmarks
+- Returns `(curves_dict, source_string)` — source is `"benchmark"` or `"prior_race:{year}/{round}"`
+
+**`constants.py`**
+- `PIT_LANE_LOSS` dict mapping circuit names to pit loss seconds
+- `ROUND_TO_CIRCUIT` dict mapping `(year, round)` to circuit name for live mode
+- `COMPOUNDS` set of valid tyre compound strings
+
 ### API Routes
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/race/{year}/{round}` | Load historical race session |
+| GET | `/` | Health check |
 | GET | `/race/{year}/{round}/degradation` | Tyre curves for all compounds |
 | GET | `/race/{year}/{round}/strategy/{driver}` | Pit recommendation for a driver |
-| GET | `/live/laps` | Current lap state from OpenF1 |
-| GET | `/live/strategy/{driver}` | Live pit recommendation |
+| POST | `/live/manual-strategy` | Live pit recommendation from manual input (year, round, driver, compound, tyre_age) |
+| GET | `/live/laps` | Current lap data from OpenF1 |
+| GET | `/live/stints` | Current stint data from OpenF1 |
+| GET | `/live/strategy/{driver}` | Live pit recommendation (stub — returns 503) |
 
 ## Frontend
 
@@ -68,7 +80,8 @@ Next.js App Router, TypeScript throughout, Tailwind CSS for styling, Recharts fo
 | Route | Component | Description |
 |---|---|---|
 | `/` | `page.tsx` | Race selector — year, round, driver |
-| `/race/[id]` | `page.tsx` | Main dashboard |
+| `/race/[id]` | `page.tsx` | Main dashboard — degradation chart, pit window, rival table |
+| `/live` | `page.tsx` | Live strategy — manual input form, pit recommendation, rival threats |
 
 ### Components
 
@@ -80,7 +93,13 @@ Next.js App Router, TypeScript throughout, Tailwind CSS for styling, Recharts fo
 
 **`LiveTicker.tsx`** — Polls `/live/laps` every 2s during a live session. Displays current lap, gap to leader, and flashes on strategy updates.
 
+**`LiveSessionBadge.tsx`** — Polls `/live/laps` every 10s. Shows red "Live" badge when a session is active, "No live session" otherwise.
+
 **`lib/api.ts`** — Typed `fetch` wrappers for all backend routes. Single source of truth for API base URL (env var `NEXT_PUBLIC_API_URL`).
+
+**`lib/types.ts`** — Shared TypeScript interfaces (`DriverRow`).
+
+**`lib/constants.ts`** — Shared constants (`COMPOUNDS`, compound colours).
 
 ## Data Flow (Historical Race)
 
@@ -94,12 +113,16 @@ User selects race
   → Dashboard renders DegradationChart + PitWindowPanel + RivalTable
 ```
 
-## Data Flow (Live Race)
+## Data Flow (Live Race — Manual Strategy)
 
 ```
-LiveTicker polls OpenF1 every 2s
-  → rival_model.py updates all driver states
-  → PitWindowPanel re-renders with fresh recommendation
+User enters driver, race, compound, tyre age on /live
+  → POST /live/manual-strategy
+  → benchmarks.py loads degradation curves (prior race or benchmark fallback)
+  → ingestion.py fetches live stints/positions/intervals from OpenF1 (session_key=latest)
+  → rival_model.py builds driver states from live feeds
+  → strategy.py produces recommendation
+  → Frontend renders PitWindowPanel + RivalTable with real rival data
 ```
 
 ## Environment Variables

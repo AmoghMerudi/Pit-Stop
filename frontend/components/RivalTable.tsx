@@ -1,21 +1,8 @@
-interface DriverRow {
-  driver: string
-  compound: string
-  tyre_age: number
-  position: number
-  is_threat: boolean
-}
+import type { DriverRow } from "@/lib/types"
+import { COMPOUND_COLOURS } from "@/lib/constants"
 
 interface Props {
   rows: DriverRow[]
-}
-
-const COMPOUND_COLOURS: Record<string, string> = {
-  SOFT: "text-[#e8002d]",
-  MEDIUM: "text-[#ffd700]",
-  HARD: "text-white",
-  INTERMEDIATE: "text-[#39b54a]",
-  WET: "text-[#0067ff]",
 }
 
 export default function RivalTable({ rows }: Props) {

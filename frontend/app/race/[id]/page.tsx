@@ -4,29 +4,22 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { getDegradation, getStrategy } from "@/lib/api"
 import type { DegradationCurve, StrategyResponse } from "@/lib/api"
+import type { DriverRow } from "@/lib/types"
 import DegradationChart from "@/components/DegradationChart"
 import PitWindowPanel from "@/components/PitWindowPanel"
 import RivalTable from "@/components/RivalTable"
 import LiveTicker from "@/components/LiveTicker"
-
-interface DriverRow {
-  driver: string
-  compound: string
-  tyre_age: number
-  position: number
-  is_threat: boolean
-}
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
 function buildRivalRows(strategy: StrategyResponse): DriverRow[] {
-  return strategy.undercut_threats.map((driver, index) => ({
-    driver,
-    compound: "SOFT",
-    tyre_age: 0,
-    position: index + 1,
+  return strategy.undercut_threats.map((t) => ({
+    driver: t.driver,
+    compound: t.compound,
+    tyre_age: t.tyre_age,
+    position: t.position,
     is_threat: true,
   }))
 }
@@ -50,7 +43,7 @@ export default function RacePage({ params }: PageProps) {
 
   // Unwrap params (Next.js 15 async params)
   useEffect(() => {
-    params.then((p) => setId(p.id))
+    params.then((p) => setId(p.id)).catch(() => setError("Failed to read route parameters"))
   }, [params])
 
   useEffect(() => {

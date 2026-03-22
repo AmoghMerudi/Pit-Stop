@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function Home() {
   const router = useRouter()
@@ -45,7 +46,7 @@ export default function Home() {
               id="year"
               type="number"
               min={2018}
-              max={2025}
+              max={new Date().getFullYear()}
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value, 10))}
               required
@@ -53,7 +54,7 @@ export default function Home() {
                          focus:outline-none focus:border-[#e8002d] transition-colors
                          [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <p className="text-[#555] text-xs">2018 – 2025</p>
+            <p className="text-[#555] text-xs">2018 – {new Date().getFullYear()}</p>
           </div>
 
           <div className="space-y-1">
@@ -106,6 +107,15 @@ export default function Home() {
           >
             Analyse Strategy
           </button>
+
+          <Link
+            href="/live"
+            className="block w-full text-center border border-[#333] hover:border-[#555] text-[#888]
+                       hover:text-white font-medium rounded-lg px-4 py-3 transition-colors text-sm
+                       uppercase tracking-wider"
+          >
+            Live Race Analysis
+          </Link>
         </form>
 
         <p className="text-center text-[#555] text-xs mt-6">

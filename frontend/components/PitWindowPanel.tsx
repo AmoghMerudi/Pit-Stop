@@ -29,7 +29,7 @@ export default function PitWindowPanel({ strategy }: Props) {
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <span className="text-[#888]">Crossover lap</span>
-          <p className="text-white font-medium">{strategy.crossover_lap}</p>
+          <p className="text-white font-medium">{strategy.crossover_lap >= 999 ? "—" : strategy.crossover_lap}</p>
         </div>
         <div>
           <span className="text-[#888]">Net delta</span>
@@ -39,13 +39,13 @@ export default function PitWindowPanel({ strategy }: Props) {
         </div>
         <div>
           <span className="text-[#888]">Optimal lap</span>
-          <p className="text-white font-medium">{strategy.optimal_lap}</p>
+          <p className="text-white font-medium">{strategy.optimal_lap <= 0 || strategy.optimal_lap >= 999 ? "—" : strategy.optimal_lap}</p>
         </div>
         <div>
           <span className="text-[#888]">Undercut threats</span>
           <p className="text-white font-medium">
             {strategy.undercut_threats.length
-              ? strategy.undercut_threats.join(", ")
+              ? strategy.undercut_threats.map(t => t.driver).join(", ")
               : "None"}
           </p>
         </div>

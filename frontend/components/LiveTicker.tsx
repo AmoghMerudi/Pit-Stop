@@ -78,7 +78,7 @@ export default function LiveTicker() {
         >
           {laps.map((lap) => (
             <li
-              key={lap.driver_number}
+              key={`${lap.driver_number}-${lap.lap_number}`}
               className={`flex items-center justify-between text-sm py-1 border-b border-[#1a1a1a] last:border-b-0
                           ${flash ? "border-l-2 border-l-[#e8002d]" : "border-l-2 border-l-transparent"}
                           transition-colors duration-300`}

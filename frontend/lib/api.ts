@@ -7,8 +7,9 @@ if (!BASE_URL) {
 async function apiFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`)
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: "Unknown error" }))
-    throw new Error(`API error ${res.status}: ${body.error}`)
+    const body = await res.json().catch(() => null)
+    const message = body?.error ?? body?.detail ?? `HTTP ${res.status} ${res.statusText}`
+    throw new Error(`API error ${res.status}: ${message}`)
   }
   return res.json()
 }
@@ -22,6 +23,13 @@ export interface DegradationCurve {
   r2: number
 }
 
+export interface ThreatDetail {
+  driver: string
+  compound: string
+  tyre_age: number
+  position: number
+}
+
 export interface StrategyResponse {
   driver: string
   recommend_pit: boolean
@@ -29,7 +37,7 @@ export interface StrategyResponse {
   optimal_lap: number
   crossover_lap: number
   net_delta: number
-  undercut_threats: string[]
+  undercut_threats: ThreatDetail[]
 }
 
 export interface LiveLap {
@@ -71,4 +79,32 @@ export function getLiveStints(): Promise<LiveStint[]> {
 
 export function getLiveStrategy(driver: string): Promise<StrategyResponse> {
   return apiFetch(`/live/strategy/${driver}`)
+}
+
+export interface LiveStrategyResponse extends StrategyResponse {
+  curve_source: string
+  rival_count: number
+}
+
+export interface ManualStrategyRequest {
+  year: number
+  round: number
+  driver: string
+  compound: string
+  tyre_age: number
+}
+
+export async function postLiveManualStrategy(
+  body: ManualStrategyRequest
+): Promise<LiveStrategyResponse> {
+  const res = await fetch(`${BASE_URL}/live/manual-strategy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ error: "Unknown error" }))
+    throw new Error(`API error ${res.status}: ${errBody.error}`)
+  }
+  return res.json()
 }

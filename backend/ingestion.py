@@ -63,7 +63,7 @@ def get_laps(session: fastf1.core.Session) -> pd.DataFrame:
     return df
 
 
-def get_live_stints(session_key: int | None = None) -> list[dict]:
+def get_live_stints(session_key: int | str | None = None) -> list[dict]:
     """
     Fetch current stint data from OpenF1.
     Returns empty list on any error — never raises.
@@ -96,7 +96,7 @@ def get_live_stints(session_key: int | None = None) -> list[dict]:
         return []
 
 
-def get_live_laps(session_key: int | None = None) -> list[dict]:
+def get_live_laps(session_key: int | str | None = None) -> list[dict]:
     """
     Fetch current lap data from OpenF1.
     Returns empty list on any error — never raises.
@@ -127,4 +127,84 @@ def get_live_laps(session_key: int | None = None) -> list[dict]:
 
     except Exception as exc:
         logger.warning("OpenF1 laps request failed: %s", exc)
+        return []
+
+
+def get_live_positions(session_key: int | str | None = None) -> list[dict]:
+    """
+    Fetch current driver positions from OpenF1 /position.
+    Returns empty list on any error — never raises.
+
+    Deduplicates on driver_number keeping the most recent entry by date.
+    """
+    params: dict = {}
+    if session_key is not None:
+        params["session_key"] = session_key
+
+    try:
+        response = requests.get(
+            f"{OPENF1_BASE_URL}/position",
+            params=params,
+            timeout=OPENF1_TIMEOUT,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        # Keep most recent entry per driver (ISO 8601 sort is lexicographic)
+        data.sort(key=lambda r: r.get("date", ""), reverse=True)
+        seen: set = set()
+        unique = []
+        for row in data:
+            drv = row.get("driver_number")
+            if drv not in seen:
+                seen.add(drv)
+                unique.append(row)
+        return unique
+
+    except Exception as exc:
+        logger.warning("OpenF1 position request failed: %s", exc)
+        return []
+
+
+def get_live_intervals(session_key: int | str | None = None) -> list[dict]:
+    """
+    Fetch current timing intervals from OpenF1 /intervals.
+    Returns empty list on any error — never raises.
+
+    gap_to_leader may be None (race leader) or a string like "+3.412".
+    Normalises all gap_to_leader values to float seconds (0.0 for the leader).
+    Deduplicates on driver_number keeping the most recent entry by date.
+    """
+    params: dict = {}
+    if session_key is not None:
+        params["session_key"] = session_key
+
+    try:
+        response = requests.get(
+            f"{OPENF1_BASE_URL}/intervals",
+            params=params,
+            timeout=OPENF1_TIMEOUT,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        # Keep most recent entry per driver
+        data.sort(key=lambda r: r.get("date", ""), reverse=True)
+        seen: set = set()
+        unique = []
+        for row in data:
+            drv = row.get("driver_number")
+            if drv not in seen:
+                seen.add(drv)
+                # Normalise gap_to_leader to float
+                raw_gap = row.get("gap_to_leader")
+                try:
+                    row["gap_to_leader"] = float(str(raw_gap).lstrip("+")) if raw_gap is not None else 0.0
+                except (ValueError, TypeError):
+                    row["gap_to_leader"] = 0.0
+                unique.append(row)
+        return unique
+
+    except Exception as exc:
+        logger.warning("OpenF1 intervals request failed: %s", exc)
         return []

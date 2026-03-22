@@ -1,5 +1,5 @@
 from pit_window import get_pit_window
-from rival_model import find_undercut_threats, find_overcut_opportunities
+from rival_model import find_undercut_threats
 
 CROSSOVER_PIT_THRESHOLD = 3  # pit if crossover is within this many laps
 
@@ -33,21 +33,25 @@ def recommend(
 
     recommend_pit = pit_for_crossover or pit_for_undercut
 
+    threat_names = ", ".join(t["driver"] for t in undercut_threats)
+
     if pit_for_crossover and pit_for_undercut:
         reason = (
             f"Pit now — crossover in {crossover_lap} lap(s) and undercut threat "
-            f"from {', '.join(undercut_threats)}"
+            f"from {threat_names}"
         )
     elif pit_for_crossover:
         reason = f"Pit now — crossover lap is {crossover_lap} lap(s) away"
     elif pit_for_undercut:
-        reason = f"Pit to defend against undercut from {', '.join(undercut_threats)}"
+        reason = f"Pit to defend against undercut from {threat_names}"
+    elif crossover_lap >= 999:
+        reason = "Stay out — tyre showing minimal degradation"
     elif window["overcut_window"]:
         reason = f"Stay out — overcut opportunity in {crossover_lap - CROSSOVER_PIT_THRESHOLD} laps"
     else:
         reason = "Stay out — no pit window yet"
 
-    optimal_lap = max(1, crossover_lap)
+    optimal_lap = max(1, crossover_lap) if crossover_lap < 999 else 0
 
     return {
         "driver": driver,
