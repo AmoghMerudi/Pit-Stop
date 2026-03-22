@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from benchmarks import load_baseline_curves
 from constants import COMPOUNDS, get_circuit_for_round
 from degradation import fit_all_compounds
-from ingestion import CURRENT_YEAR, get_laps, get_live_intervals, get_live_laps, get_live_positions, get_live_stints, load_session
+from ingestion import CURRENT_YEAR, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_stints, get_race_state, load_session
 from models import DegradationCurve, ErrorResponse, LiveStrategyResponse, ManualStrategyRequest, StrategyResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
@@ -66,7 +66,8 @@ def get_strategy(year: int, round_number: int, driver: str):
         laps = get_laps(session)
         curves = fit_all_compounds(laps)
         current_lap = int(laps["lap_number"].max())
-        driver_states = build_driver_states(laps, current_lap)
+        race_state = get_race_state(session, current_lap)
+        driver_states = build_driver_states(laps, current_lap, race_state)
         circuit = session.event.get("Location") if hasattr(session, "event") else None
         result = recommend(driver, driver_states, curves, circuit)
         return StrategyResponse(**result)
@@ -101,16 +102,18 @@ def live_manual_strategy(body: ManualStrategyRequest):
         curves, curve_source = load_baseline_curves(body.year, body.round)
 
         # 2. Fetch live rival data in parallel
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             f_stints = executor.submit(get_live_stints, "latest")
             f_positions = executor.submit(get_live_positions, "latest")
             f_intervals = executor.submit(get_live_intervals, "latest")
+            f_drivers = executor.submit(get_live_drivers, "latest")
             stints = f_stints.result()
             positions = f_positions.result()
             intervals = f_intervals.result()
+            driver_mapping = f_drivers.result()
 
-        # 3. Build rival states from OpenF1 live feeds
-        driver_states = build_live_driver_states(stints, positions, intervals)
+        # 3. Build rival states from OpenF1 live feeds (keyed by 3-letter code)
+        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
         rival_count = len(driver_states)
 
         # 4. Inject user's driver state (override compound + tyre_age with what user entered)

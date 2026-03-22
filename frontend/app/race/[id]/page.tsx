@@ -4,24 +4,15 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { getDegradation, getStrategy } from "@/lib/api"
 import type { DegradationCurve, StrategyResponse } from "@/lib/api"
-import type { DriverRow } from "@/lib/types"
 import DegradationChart from "@/components/DegradationChart"
-import PitWindowPanel from "@/components/PitWindowPanel"
-import RivalTable from "@/components/RivalTable"
-import LiveTicker from "@/components/LiveTicker"
+import TimingTower from "@/components/TimingTower"
+import MetricTile from "@/components/MetricTile"
+import PitCountdown from "@/components/PitCountdown"
+import CircuitInfo from "@/components/CircuitInfo"
+import LiveSessionBadge from "@/components/LiveSessionBadge"
 
 interface PageProps {
   params: Promise<{ id: string }>
-}
-
-function buildRivalRows(strategy: StrategyResponse): DriverRow[] {
-  return strategy.undercut_threats.map((t) => ({
-    driver: t.driver,
-    compound: t.compound,
-    tyre_age: t.tyre_age,
-    position: t.position,
-    is_threat: true,
-  }))
 }
 
 function parseId(id: string): { year: number; round: number; driver: string } | null {
@@ -34,6 +25,14 @@ function parseId(id: string): { year: number; round: number; driver: string } | 
   return { year, round, driver }
 }
 
+function netDeltaDisplay(delta: number): { value: string; status: "green" | "red" | "neutral" } {
+  const sign = delta >= 0 ? "+" : ""
+  return {
+    value: `${sign}${delta.toFixed(3)}`,
+    status: delta >= 0 ? "green" : "red",
+  }
+}
+
 export default function RacePage({ params }: PageProps) {
   const [id, setId] = useState<string>("")
   const [curves, setCurves] = useState<DegradationCurve[] | null>(null)
@@ -41,7 +40,6 @@ export default function RacePage({ params }: PageProps) {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Unwrap params (Next.js 15 async params)
   useEffect(() => {
     params.then((p) => setId(p.id)).catch(() => setError("Failed to read route parameters"))
   }, [params])
@@ -75,75 +73,131 @@ export default function RacePage({ params }: PageProps) {
 
   const parsed = id ? parseId(id) : null
 
+  // Get selected driver's tyre age for chart marker
+  const selectedDriverState = strategy?.all_drivers.find((d) => d.driver === strategy.driver)
+  const currentTyreAge = selectedDriverState?.tyre_age
+  const threatCodes = strategy?.undercut_threats.map((t) => t.driver) ?? []
+  const nd = strategy ? netDeltaDisplay(strategy.net_delta) : null
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 py-6 md:px-8">
-      {/* Top bar */}
-      <header className="flex items-center justify-between mb-8">
+    <div className="h-screen flex flex-col bg-[#0a0a0a]">
+      {/* Header bar */}
+      <header className="h-12 flex items-center justify-between px-4 border-b border-[#222] shrink-0">
         <Link
           href="/"
-          className="flex items-center gap-2 text-[#888] hover:text-white text-sm transition-colors"
+          className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors"
         >
           <span aria-hidden="true">&#8592;</span>
           Back
         </Link>
 
         <div className="flex items-center gap-2">
-          <span className="text-[#e8002d] font-bold text-lg">&#9646;</span>
-          <span className="text-white font-semibold tracking-tight">Pit Stop</span>
+          <span className="text-[#e8002d] font-bold text-sm" aria-hidden="true">&#9646;</span>
+          <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
         </div>
 
-        {parsed && (
-          <div className="text-right text-sm">
-            <span className="text-white font-medium">
-              {parsed.year} · R{parsed.round} · {parsed.driver}
+        <div className="flex items-center gap-4">
+          {parsed && (
+            <span className="text-xs font-mono text-[#888]">
+              {parsed.year} · R{parsed.round}
+              {strategy?.circuit ? ` · ${strategy.circuit}` : ""}
+              {" · "}
+              <span className="text-white font-bold">{parsed.driver}</span>
             </span>
-          </div>
-        )}
+          )}
+          <LiveSessionBadge />
+        </div>
       </header>
 
       {/* Error banner */}
       {error && (
-        <div className="mb-6 bg-[#2a0a0a] border border-[#e8002d] rounded-lg px-5 py-4 text-[#e8002d] text-sm">
-          <span className="font-semibold">Error: </span>
+        <div className="px-4 py-3 bg-[#1a0a0a] border-b border-[#e8002d] text-[#e8002d] text-xs">
+          <span className="font-bold">ERROR: </span>
           {error}
         </div>
       )}
 
       {/* Loading state */}
       {loading && !error && (
-        <div className="space-y-4">
-          {/* Skeleton blocks */}
-          <div className="bg-[#111] border border-[#222] rounded-lg h-64 animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-[#111] border border-[#222] rounded-lg h-40 animate-pulse" />
-            <div className="bg-[#111] border border-[#222] rounded-lg h-40 animate-pulse" />
-          </div>
-          <div className="flex items-center justify-center py-8 text-[#555] text-sm">
-            Loading race data — this may take a moment if the session is not cached...
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px_1fr]">
+          <div className="border-r border-[#222] bg-[#0a0a0a] animate-pulse" />
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-4 gap-px">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-20 bg-[#111] animate-pulse" />
+              ))}
+            </div>
+            <div className="h-16 bg-[#111] animate-pulse" />
+            <div className="h-72 bg-[#111] animate-pulse" />
+            <div className="flex items-center justify-center py-8 text-[#555] text-xs">
+              Loading race data — this may take a moment if the session is not cached...
+            </div>
           </div>
         </div>
       )}
 
-      {/* Dashboard content */}
+      {/* Dashboard */}
       {!loading && !error && curves && strategy && (
-        <div className="space-y-4">
-          {/* Degradation chart — full width */}
-          <DegradationChart curves={curves} />
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px_1fr] overflow-hidden">
+          {/* Left: Timing Tower */}
+          <TimingTower
+            drivers={strategy.all_drivers}
+            selectedDriver={strategy.driver}
+            threats={threatCodes}
+          />
 
-          {/* Pit window + rival table — side by side on wider screens */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PitWindowPanel strategy={strategy} />
-            <RivalTable rows={buildRivalRows(strategy)} />
+          {/* Right: Panels */}
+          <div className="overflow-y-auto">
+            {/* Metric tiles row */}
+            <div className="grid grid-cols-4 border-b border-[#222]">
+              <MetricTile
+                label="Crossover"
+                value={strategy.crossover_lap >= 999 ? "—" : strategy.crossover_lap}
+                unit={strategy.crossover_lap < 999 ? "laps" : undefined}
+              />
+              <MetricTile
+                label="Net Delta"
+                value={nd!.value}
+                unit="s"
+                status={nd!.status}
+              />
+              <MetricTile
+                label="Optimal Lap"
+                value={strategy.optimal_lap <= 0 || strategy.optimal_lap >= 999 ? "—" : strategy.optimal_lap}
+              />
+              <MetricTile
+                label="Pit Loss"
+                value={strategy.pit_loss.toFixed(1)}
+                unit="s"
+              />
+            </div>
+
+            {/* Pit recommendation */}
+            <PitCountdown
+              crossoverLap={strategy.crossover_lap}
+              recommendPit={strategy.recommend_pit}
+              reason={strategy.reason}
+            />
+
+            {/* Degradation chart */}
+            <DegradationChart
+              curves={curves}
+              currentTyreAge={currentTyreAge}
+            />
+
+            {/* Circuit info */}
+            <CircuitInfo
+              circuit={strategy.circuit}
+              pitLoss={strategy.pit_loss}
+              curves={curves}
+            />
           </div>
-
-          {/* Live ticker */}
-          <LiveTicker />
         </div>
       )}
 
-      {/* No-data state (fetched successfully but empty) */}
+      {/* No-data state */}
       {!loading && !error && curves && strategy === null && (
-        <div className="flex items-center justify-center py-20 text-[#888] text-sm">
+        <div className="flex-1 flex items-center justify-center text-[#555] text-xs">
           No strategy data available for this selection.
         </div>
       )}

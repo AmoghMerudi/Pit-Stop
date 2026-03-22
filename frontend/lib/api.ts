@@ -28,6 +28,15 @@ export interface ThreatDetail {
   compound: string
   tyre_age: number
   position: number
+  threat_score: number
+}
+
+export interface DriverStateResponse {
+  driver: string
+  compound: string
+  tyre_age: number
+  position: number
+  gap_to_leader: number
 }
 
 export interface StrategyResponse {
@@ -38,6 +47,10 @@ export interface StrategyResponse {
   crossover_lap: number
   net_delta: number
   undercut_threats: ThreatDetail[]
+  all_drivers: DriverStateResponse[]
+  pit_loss: number
+  circuit: string | null
+  best_alt: string | null
 }
 
 export interface LiveLap {

@@ -7,23 +7,16 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts"
 import type { DegradationCurve } from "@/lib/api"
-
-// SOFT=#e8002d  MEDIUM=#ffd700  HARD=#ffffff
-const COMPOUND_COLOURS: Record<string, string> = {
-  SOFT: "#e8002d",
-  MEDIUM: "#ffd700",
-  HARD: "#ffffff",
-  INTERMEDIATE: "#39b54a",
-  WET: "#0067ff",
-}
+import { COMPOUND_HEX } from "@/lib/constants"
 
 interface Props {
   curves: DegradationCurve[]
   maxAge?: number
+  currentTyreAge?: number
 }
 
 function buildChartData(curves: DegradationCurve[], maxAge: number) {
@@ -39,10 +32,10 @@ function buildChartData(curves: DegradationCurve[], maxAge: number) {
   })
 }
 
-export default function DegradationChart({ curves, maxAge = 40 }: Props) {
+export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }: Props) {
   if (!curves.length) {
     return (
-      <div className="flex items-center justify-center h-48 text-[#888]">
+      <div className="flex items-center justify-center h-48 text-[#555] text-xs">
         No degradation data
       </div>
     )
@@ -51,38 +44,63 @@ export default function DegradationChart({ curves, maxAge = 40 }: Props) {
   const data = buildChartData(curves, maxAge)
 
   return (
-    <div className="bg-[#111] border border-[#222] rounded-lg p-4">
-      <h2 className="text-sm font-medium text-[#888] uppercase tracking-wider mb-4">
-        Tyre Degradation
-      </h2>
-      <ResponsiveContainer width="100%" height={240}>
+    <div className="p-4 border-b border-[#222]">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest">
+          Tyre Degradation
+        </p>
+        {/* Custom legend with R² */}
+        <div className="flex flex-wrap gap-3">
+          {curves.map((curve) => (
+            <div key={curve.compound} className="flex items-center gap-1.5 text-[10px]">
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ backgroundColor: COMPOUND_HEX[curve.compound] ?? "#888" }}
+              />
+              <span className="text-[#888] font-medium">{curve.compound}</span>
+              <span className="font-mono text-[#555]">
+                {curve.r2 > 0 ? `r\u00B2=${curve.r2.toFixed(2)}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={280}>
         <LineChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid stroke="#222" strokeDasharray="3 3" />
+          <CartesianGrid stroke="#1a1a1a" />
           <XAxis
             dataKey="age"
-            stroke="#888"
-            tick={{ fill: "#888", fontSize: 11 }}
-            label={{ value: "Tyre age (laps)", position: "insideBottomRight", offset: -4, fill: "#888", fontSize: 11 }}
+            stroke="#555"
+            tick={{ fill: "#555", fontSize: 10 }}
+            label={{ value: "Tyre age (laps)", position: "insideBottomRight", offset: -4, fill: "#555", fontSize: 10 }}
           />
           <YAxis
-            stroke="#888"
-            tick={{ fill: "#888", fontSize: 11 }}
-            label={{ value: "Delta (s)", angle: -90, position: "insideLeft", fill: "#888", fontSize: 11 }}
+            stroke="#555"
+            tick={{ fill: "#555", fontSize: 10 }}
+            label={{ value: "Delta (s)", angle: -90, position: "insideLeft", fill: "#555", fontSize: 10 }}
           />
           <Tooltip
-            contentStyle={{ background: "#111", border: "1px solid #222", borderRadius: 4 }}
-            labelStyle={{ color: "#888", fontSize: 11 }}
-            itemStyle={{ fontSize: 12 }}
+            contentStyle={{ background: "#111", border: "1px solid #222", borderRadius: 4, fontSize: 11 }}
+            labelStyle={{ color: "#888", fontSize: 10 }}
+            itemStyle={{ fontSize: 11 }}
             formatter={(value) => [`${Number(value).toFixed(3)}s`, undefined]}
             labelFormatter={(label) => `Lap ${label}`}
           />
-          <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+          {currentTyreAge && currentTyreAge > 0 && (
+            <ReferenceLine
+              x={currentTyreAge}
+              stroke="#e8002d"
+              strokeDasharray="4 4"
+              strokeWidth={1}
+              label={{ value: "NOW", position: "top", fill: "#e8002d", fontSize: 10 }}
+            />
+          )}
           {curves.map((curve) => (
             <Line
               key={curve.compound}
               type="monotone"
               dataKey={curve.compound}
-              stroke={COMPOUND_COLOURS[curve.compound] ?? "#888"}
+              stroke={COMPOUND_HEX[curve.compound] ?? "#888"}
               strokeWidth={2}
               dot={false}
             />

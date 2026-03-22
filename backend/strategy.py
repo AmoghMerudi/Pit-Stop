@@ -1,4 +1,4 @@
-from pit_window import get_pit_window
+from pit_window import get_pit_loss, get_pit_window
 from rival_model import find_undercut_threats
 
 CROSSOVER_PIT_THRESHOLD = 3  # pit if crossover is within this many laps
@@ -9,24 +9,28 @@ def recommend(
     driver_states: dict[str, dict],
     curves: dict[str, dict],
     circuit: str | None = None,
+    remaining_laps: int = 20,
 ) -> dict:
     """
     Produce a pit stop recommendation for a driver.
 
     Returns:
         recommend_pit (bool), reason (str), optimal_lap (int),
-        crossover_lap (int), net_delta (float), undercut_threats (list[str])
+        crossover_lap (int), net_delta (float), undercut_threats (list[str]),
+        best_alt (str | None)
     """
     if driver not in driver_states:
         raise ValueError(f"Driver {driver} not found in session data")
 
     state = driver_states[driver]
-    window = get_pit_window(state, curves, circuit)
+    window = get_pit_window(state, curves, circuit, remaining_laps)
 
-    undercut_threats = find_undercut_threats(driver, driver_states)
+    undercut_threats = find_undercut_threats(driver, driver_states, curves, circuit)
 
     crossover_lap = window["crossover_lap"]
     net_delta = window["net_delta"]
+    best_alt = window["best_alt"]
+    optimal_lap = window["optimal_lap"]
 
     pit_for_crossover = crossover_lap <= CROSSOVER_PIT_THRESHOLD
     pit_for_undercut = len(undercut_threats) > 0
@@ -51,7 +55,9 @@ def recommend(
     else:
         reason = "Stay out — no pit window yet"
 
-    optimal_lap = max(1, crossover_lap) if crossover_lap < 999 else 0
+    all_drivers = [
+        {"driver": k, **v} for k, v in driver_states.items()
+    ]
 
     return {
         "driver": driver,
@@ -61,4 +67,8 @@ def recommend(
         "crossover_lap": crossover_lap,
         "net_delta": round(net_delta, 3),
         "undercut_threats": undercut_threats,
+        "all_drivers": all_drivers,
+        "pit_loss": get_pit_loss(circuit),
+        "circuit": circuit,
+        "best_alt": best_alt,
     }

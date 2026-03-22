@@ -17,3 +17,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Red glow pulse for branding accent */
+.red-glow {
+  text-shadow: 0 0 20px rgba(232, 0, 45, 0.4);
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(232, 0, 45, 0.4); }
+  50% { text-shadow: 0 0 30px rgba(232, 0, 45, 0.6); }
+}
+
+/* Pitwall utilities */
+.compound-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Scrollbar styling for timing tower */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
