@@ -106,3 +106,17 @@ def predict_delta(compound: str, age: int, curves: dict[str, dict]) -> float:
         value = c["slope"] * age + c["intercept"]
 
     return max(0.0, value)
+
+
+def find_cliff_lap(compound: str, curves: dict[str, dict], threshold: float = 1.5) -> int:
+    """
+    Find the tyre age at which degradation exceeds a threshold (the 'cliff').
+    Returns the tyre age (laps) at which predict_delta >= threshold.
+    Returns 60 if no cliff is found within 60 laps.
+    """
+    if compound not in curves:
+        return 60
+    for age in range(1, 61):
+        if predict_delta(compound, age, curves) >= threshold:
+            return age
+    return 60

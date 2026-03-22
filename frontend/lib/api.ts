@@ -143,6 +143,101 @@ export function getRaceControl(year: number, round: number): Promise<RaceControl
   return apiFetch(`/race/${year}/${round}/race-control`)
 }
 
+export interface StintInfo {
+  driver: string
+  stint_number: number
+  compound: string
+  lap_start: number
+  lap_end: number
+}
+
+export interface PositionHistoryPoint {
+  lap: number
+  positions: Record<string, number>
+}
+
+export interface LapTimeStats {
+  driver: string
+  median: number
+  q1: number
+  q3: number
+  min: number
+  max: number
+  whisker_low: number
+  whisker_high: number
+  lap_count: number
+}
+
+export interface PitStopInfo {
+  driver: string
+  lap: number
+  pit_duration: number
+  compound_before: string
+  compound_after: string
+}
+
+export function getStints(year: number, round: number): Promise<StintInfo[]> {
+  return apiFetch(`/race/${year}/${round}/stints`)
+}
+
+export function getPositions(year: number, round: number): Promise<PositionHistoryPoint[]> {
+  return apiFetch(`/race/${year}/${round}/positions`)
+}
+
+export function getLapTimes(year: number, round: number): Promise<LapTimeStats[]> {
+  return apiFetch(`/race/${year}/${round}/laptimes`)
+}
+
+export function getPitStops(year: number, round: number): Promise<PitStopInfo[]> {
+  return apiFetch(`/race/${year}/${round}/pitstops`)
+}
+
+export interface RaceSummary {
+  fastest_lap: { driver: string; lap: number; time: number } | null
+  biggest_gainer: { driver: string; positions_gained: number; grid: number; finish: number } | null
+  best_pit_stop: PitStopInfo | null
+  worst_pit_stop: PitStopInfo | null
+  most_overtakes: { driver: string; overtakes: number } | null
+  total_overtakes: number
+  leader_changes: number
+  safety_car_periods: number
+  red_flags: number
+  unique_strategies: number
+  total_pit_stops: number
+}
+
+export function getRaceSummary(year: number, round: number): Promise<RaceSummary> {
+  return apiFetch(`/race/${year}/${round}/summary`)
+}
+
+export interface TyrePrediction {
+  driver: string
+  compound: string
+  tyre_age: number
+  predicted_cliff_lap: number
+  estimated_laps_remaining: number
+}
+
+export function getLiveTyrePrediction(): Promise<TyrePrediction[]> {
+  return apiFetch("/live/tyre-prediction")
+}
+
+export interface WhatIfResponse {
+  driver: string
+  hypothetical_pit_lap: number
+  new_compound: string
+  projected_net_delta: number
+  projected_crossover: number
+  projected_optimal_lap: number
+  recommendation: string
+  actual_compound: string
+  actual_tyre_age: number
+}
+
+export function getWhatIf(year: number, round: number, driver: string, pitLap: number, compound: string): Promise<WhatIfResponse> {
+  return apiFetch(`/race/${year}/${round}/what-if/${driver}?pit_lap=${pitLap}&new_compound=${compound}`)
+}
+
 export function getLiveLaps(): Promise<LiveLap[]> {
   return apiFetch("/live/laps")
 }

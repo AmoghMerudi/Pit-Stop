@@ -8,7 +8,7 @@ export default function LandingPage() {
       <header className="h-14 flex items-center justify-between px-6 border-b border-[#222] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-[#e8002d] font-bold text-lg red-glow" aria-hidden="true">&#9646;</span>
-          <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
+          <span className="text-white font-semibold text-sm tracking-tight">PITWALL</span>
         </div>
         <nav className="flex items-center gap-6">
           <Link href="/analyze" className="text-[#888] hover:text-white text-xs uppercase tracking-widest transition-colors">
@@ -115,7 +115,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-5 mb-4">
               <span className="text-[#e8002d] text-7xl font-bold red-glow leading-none" aria-hidden="true">&#9646;</span>
               <div>
-                <h1 className="text-6xl font-bold text-white tracking-tight leading-none">PIT STOP</h1>
+                <h1 className="text-6xl font-bold text-white tracking-tight leading-none">PITWALL</h1>
                 <p className="text-[#555] text-xs tracking-[0.3em] uppercase mt-1">F1 Strategy Engine</p>
               </div>
             </div>

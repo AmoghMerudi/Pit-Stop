@@ -7,10 +7,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from benchmarks import load_baseline_curves
+from degradation import find_cliff_lap
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds
-from ingestion import CURRENT_YEAR, get_driver_statuses, get_gap_evolution, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_race_control_events, get_race_state, get_sector_times, get_total_laps, get_weather_data, load_session
-from models import DegradationCurve, ErrorResponse, GapEvolutionPoint, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, RaceControlEvent, SectorTime, StrategyResponse, WeatherDataPoint
+from ingestion import CURRENT_YEAR, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
+from models import DegradationCurve, ErrorResponse, GapEvolutionPoint, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
 
@@ -18,7 +19,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="F1 Pit Stop Strategy Optimizer")
+app = FastAPI(title="Pitwall — F1 Strategy Optimizer")
 
 origins = [
     "http://localhost:3000",
@@ -152,6 +153,131 @@ def get_race_control(year: int, round_number: int):
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         logger.error("Error in /race/%d/%d/race-control: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/stints", response_model=list[StintInfo])
+def get_race_stints(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return get_stints(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/stints: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/positions", response_model=list[PositionHistoryPoint])
+def get_positions(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return get_position_history(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/positions: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/laptimes", response_model=list[LapTimeStats])
+def get_laptimes(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return get_lap_time_stats(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/laptimes: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/pitstops", response_model=list[PitStopInfo])
+def get_pitstops(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return get_pit_stops(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/pitstops: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/summary", response_model=RaceSummary)
+def get_summary(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return generate_race_summary(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/summary: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/what-if/{driver}", response_model=WhatIfResponse)
+def what_if(year: int, round_number: int, driver: str, pit_lap: int = 1, new_compound: str = "MEDIUM"):
+    """Simulate: what if driver pitted on a different lap for a different compound?"""
+    driver = driver.upper()
+    new_compound = new_compound.upper()
+    try:
+        session = load_session(year, round_number)
+        laps = get_laps(session)
+        curves = fit_all_compounds(laps)
+        total_laps = get_total_laps(session)
+        max_lap = int(laps["lap_number"].max())
+
+        # Build driver states at the hypothetical pit lap
+        race_state = get_race_state(session, min(pit_lap, max_lap))
+        statuses = get_driver_statuses(session, min(pit_lap, max_lap))
+        driver_states = build_driver_states(laps[laps["lap_number"] <= pit_lap], pit_lap, race_state, statuses)
+
+        if driver not in driver_states:
+            raise HTTPException(status_code=404, detail=f"Driver {driver} not found")
+
+        actual_state = driver_states[driver]
+        actual_compound = actual_state["compound"]
+        actual_tyre_age = actual_state["tyre_age"]
+
+        # Simulate: after pitting, driver has fresh tyres of new_compound
+        simulated_state = dict(actual_state)
+        simulated_state["compound"] = new_compound
+        simulated_state["tyre_age"] = 0
+
+        remaining = max(1, total_laps - pit_lap)
+        circuit = session.event.get("Location") if hasattr(session, "event") else None
+
+        from pit_window import get_pit_window
+        window = get_pit_window(simulated_state, curves, circuit, remaining)
+
+        # Determine recommendation text
+        if window["net_delta"] > 0:
+            rec = f"Pitting on lap {pit_lap} for {new_compound} saves {window['net_delta']:.1f}s"
+        elif window["net_delta"] > -2:
+            rec = f"Marginal — pitting on lap {pit_lap} costs only {abs(window['net_delta']):.1f}s"
+        else:
+            rec = f"Suboptimal — pitting on lap {pit_lap} costs {abs(window['net_delta']):.1f}s"
+
+        return WhatIfResponse(
+            driver=driver,
+            hypothetical_pit_lap=pit_lap,
+            new_compound=new_compound,
+            projected_net_delta=round(window["net_delta"], 3),
+            projected_crossover=window["crossover_lap"],
+            projected_optimal_lap=window["optimal_lap"],
+            recommendation=rec,
+            actual_compound=actual_compound,
+            actual_tyre_age=actual_tyre_age,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/what-if/%s: %s", year, round_number, driver, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -373,6 +499,66 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
     except Exception as exc:
         logger.error("Error in /live/strategy/%s: %s", driver, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/live/tyre-prediction", response_model=list[TyrePrediction])
+def live_tyre_prediction(year: int | None = None, round: int | None = None):
+    """Predict tyre cliff for each driver on the live grid."""
+    try:
+        # Auto-detect year/round from live session if not provided
+        if year is None or round is None:
+            info = get_live_session_info("latest")
+            if not info:
+                return []
+            year = year or info.get("year", CURRENT_YEAR)
+            if round is None:
+                circuit = info.get("circuit_short_name", "")
+                for (y, r), c in ROUND_TO_CIRCUIT.items():
+                    if y == year and c and circuit and c.lower() in circuit.lower():
+                        round = r
+                        break
+                if round is None:
+                    round = 1
+
+        # Load baseline curves
+        curves_raw, _ = load_baseline_curves(year, round)
+
+        # Fetch live grid
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            f_stints = executor.submit(get_live_stints, "latest")
+            f_positions = executor.submit(get_live_positions, "latest")
+            f_intervals = executor.submit(get_live_intervals, "latest")
+            f_drivers = executor.submit(get_live_drivers, "latest")
+            stints = f_stints.result()
+            positions = f_positions.result()
+            intervals = f_intervals.result()
+            driver_mapping = f_drivers.result()
+
+        if not stints:
+            return []
+
+        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
+
+        predictions = []
+        for drv, state in driver_states.items():
+            compound = state["compound"]
+            tyre_age = state["tyre_age"]
+            cliff_lap = find_cliff_lap(compound, curves_raw)
+            remaining = max(0, cliff_lap - tyre_age)
+            predictions.append(TyrePrediction(
+                driver=drv,
+                compound=compound,
+                tyre_age=tyre_age,
+                predicted_cliff_lap=cliff_lap,
+                estimated_laps_remaining=remaining,
+            ))
+
+        predictions.sort(key=lambda p: p.estimated_laps_remaining)
+        return predictions
+
+    except Exception as exc:
+        logger.error("Error in /live/tyre-prediction: %s", exc, exc_info=True)
+        return []
 
 
 @app.get("/live/laps", response_model=list[dict])

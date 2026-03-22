@@ -3,6 +3,7 @@ import os
 from datetime import date
 
 import fastf1
+import numpy as np
 import pandas as pd
 import requests
 from dotenv import load_dotenv
@@ -442,6 +443,265 @@ def get_race_control_events(session: fastf1.core.Session) -> list[dict]:
         events.append(current_event)
 
     return events
+
+
+def get_stints(session: fastf1.core.Session) -> list[dict]:
+    """
+    Extract all stint data from a session — each driver's compound, stint number,
+    and lap range for the tyre strategy timeline.
+    Returns list of {driver, stint_number, compound, lap_start, lap_end}.
+    """
+    all_laps = session.laps.copy()
+    all_laps = all_laps.rename(columns={
+        "Driver": "driver",
+        "Stint": "stint",
+        "Compound": "compound",
+        "LapNumber": "lap_number",
+    })
+    all_laps = all_laps.dropna(subset=["stint", "compound", "lap_number"])
+
+    results = []
+    for (drv, stint), grp in all_laps.groupby(["driver", "stint"]):
+        compound = grp["compound"].mode().iloc[0] if not grp["compound"].mode().empty else "UNKNOWN"
+        results.append({
+            "driver": drv,
+            "stint_number": int(stint),
+            "compound": compound,
+            "lap_start": int(grp["lap_number"].min()),
+            "lap_end": int(grp["lap_number"].max()),
+        })
+
+    results.sort(key=lambda x: (x["driver"], x["stint_number"]))
+    return results
+
+
+def get_position_history(session: fastf1.core.Session) -> list[dict]:
+    """
+    Extract position per driver per lap for the position change chart.
+    Uses ALL laps (not quicklaps) for complete position tracking.
+    Returns list of {lap, positions: {driver_code: position}}.
+    """
+    all_laps = session.laps.copy()
+    all_laps = all_laps.rename(columns={
+        "Driver": "driver",
+        "LapNumber": "lap_number",
+        "Position": "position",
+    })
+    all_laps = all_laps.dropna(subset=["lap_number", "position"])
+
+    results = []
+    for lap_num, grp in all_laps.groupby("lap_number"):
+        positions: dict[str, int] = {}
+        for _, row in grp.iterrows():
+            positions[row["driver"]] = int(row["position"])
+        results.append({"lap": int(lap_num), "positions": positions})
+
+    results.sort(key=lambda x: x["lap"])
+    return results
+
+
+def get_lap_time_stats(session: fastf1.core.Session) -> list[dict]:
+    """
+    Compute lap time distribution stats per driver (median, Q1, Q3, whiskers).
+    Excludes pit in/out laps and SC/VSC laps for clean data.
+    Returns list of {driver, median, q1, q3, min, max, whisker_low, whisker_high, lap_count}.
+    """
+    all_laps = session.laps.copy()
+
+    # Convert lap times
+    all_laps["lap_time_sec"] = all_laps["LapTime"].dt.total_seconds()
+    all_laps = all_laps.dropna(subset=["lap_time_sec"])
+    all_laps = all_laps[all_laps["lap_time_sec"] > 0]
+
+    # Filter SC/VSC laps
+    if "TrackStatus" in all_laps.columns:
+        all_laps = all_laps[~all_laps["TrackStatus"].astype(str).isin(SC_STATUS_CODES)]
+
+    # Filter pit in/out laps
+    if "PitInTime" in all_laps.columns:
+        all_laps = all_laps[all_laps["PitInTime"].isna()]
+    if "PitOutTime" in all_laps.columns:
+        all_laps = all_laps[all_laps["PitOutTime"].isna()]
+
+    results = []
+    for driver, grp in all_laps.groupby("Driver"):
+        times = grp["lap_time_sec"].values
+        if len(times) < 3:
+            continue
+
+        q1, median, q3 = np.percentile(times, [25, 50, 75])
+        iqr = q3 - q1
+        whisker_low = max(float(times.min()), float(q1 - 1.5 * iqr))
+        whisker_high = min(float(times.max()), float(q3 + 1.5 * iqr))
+
+        results.append({
+            "driver": driver,
+            "median": round(float(median), 3),
+            "q1": round(float(q1), 3),
+            "q3": round(float(q3), 3),
+            "min": round(float(times.min()), 3),
+            "max": round(float(times.max()), 3),
+            "whisker_low": round(whisker_low, 3),
+            "whisker_high": round(whisker_high, 3),
+            "lap_count": len(times),
+        })
+
+    results.sort(key=lambda x: x["median"])
+    return results
+
+
+def get_pit_stops(session: fastf1.core.Session) -> list[dict]:
+    """
+    Extract pit stop data from session laps using PitInTime/PitOutTime.
+    Returns list of {driver, lap, pit_duration, compound_before, compound_after}.
+    """
+    all_laps = session.laps.copy()
+
+    if "PitInTime" not in all_laps.columns or "PitOutTime" not in all_laps.columns:
+        return []
+
+    results = []
+
+    for driver, drv_laps in all_laps.groupby("Driver"):
+        drv_laps = drv_laps.sort_values("LapNumber")
+
+        for idx, row in drv_laps.iterrows():
+            pit_in = row.get("PitInTime")
+            if pd.isna(pit_in):
+                continue
+
+            lap_num = int(row["LapNumber"])
+            compound_before = str(row.get("Compound", "UNKNOWN"))
+
+            # Find next lap's compound (the new tyres after pit)
+            next_laps = drv_laps[drv_laps["LapNumber"] > lap_num]
+            compound_after = str(next_laps.iloc[0].get("Compound", "UNKNOWN")) if not next_laps.empty else "UNKNOWN"
+
+            # Calculate pit duration
+            pit_out = row.get("PitOutTime")
+            # PitOutTime might be on the next lap row
+            if pd.isna(pit_out) and not next_laps.empty:
+                pit_out = next_laps.iloc[0].get("PitOutTime")
+
+            if pd.notna(pit_in) and pd.notna(pit_out):
+                duration = (pit_out - pit_in).total_seconds()
+                if duration > 0:
+                    results.append({
+                        "driver": driver,
+                        "lap": lap_num,
+                        "pit_duration": round(float(duration), 1),
+                        "compound_before": compound_before,
+                        "compound_after": compound_after,
+                    })
+
+    results.sort(key=lambda x: x["lap"])
+    return results
+
+
+def generate_race_summary(session: fastf1.core.Session) -> dict:
+    """
+    Generate a post-race summary with key highlights.
+    Returns dict with stats like biggest gainer, fastest lap, overtakes, etc.
+    """
+    all_laps = session.laps.copy()
+
+    # --- Fastest lap ---
+    quick_laps = all_laps.pick_quicklaps(threshold=1.1)
+    fastest_lap_info = None
+    if not quick_laps.empty:
+        fastest_idx = quick_laps["LapTime"].idxmin()
+        fl = quick_laps.loc[fastest_idx]
+        fastest_lap_info = {
+            "driver": str(fl["Driver"]),
+            "lap": int(fl["LapNumber"]),
+            "time": round(fl["LapTime"].total_seconds(), 3),
+        }
+
+    # --- Biggest position gainer ---
+    results = session.results
+    biggest_gainer = None
+    biggest_gain = 0
+    if results is not None and not results.empty and "GridPosition" in results.columns and "Position" in results.columns:
+        for _, row in results.iterrows():
+            grid = row.get("GridPosition")
+            finish = row.get("Position")
+            if pd.notna(grid) and pd.notna(finish) and float(grid) > 0 and float(finish) > 0:
+                gain = int(float(grid)) - int(float(finish))
+                if gain > biggest_gain:
+                    biggest_gain = gain
+                    biggest_gainer = {
+                        "driver": str(row.get("Abbreviation", row.get("Driver", "???"))),
+                        "positions_gained": gain,
+                        "grid": int(float(grid)),
+                        "finish": int(float(finish)),
+                    }
+
+    # --- Pit stops stats ---
+    pit_stops = get_pit_stops(session)
+    best_pit = None
+    worst_pit = None
+    if pit_stops:
+        sorted_pits = sorted(pit_stops, key=lambda p: p["pit_duration"])
+        best_pit = sorted_pits[0]
+        worst_pit = sorted_pits[-1]
+
+    # --- Position changes / overtakes ---
+    positions = get_position_history(session)
+    total_overtakes = 0
+    driver_overtakes: dict[str, int] = {}
+    for i in range(1, len(positions)):
+        prev_pos = positions[i - 1]["positions"]
+        curr_pos = positions[i]["positions"]
+        for drv, pos in curr_pos.items():
+            prev = prev_pos.get(drv)
+            if prev is not None and pos < prev:
+                gained = prev - pos
+                total_overtakes += gained
+                driver_overtakes[drv] = driver_overtakes.get(drv, 0) + gained
+
+    most_overtakes = None
+    if driver_overtakes:
+        top_drv = max(driver_overtakes, key=driver_overtakes.get)  # type: ignore
+        most_overtakes = {"driver": top_drv, "overtakes": driver_overtakes[top_drv]}
+
+    # --- Leader changes ---
+    leader_changes = 0
+    prev_leader = None
+    for p in positions:
+        leader = min(p["positions"], key=p["positions"].get) if p["positions"] else None  # type: ignore
+        if leader and leader != prev_leader:
+            leader_changes += 1
+            prev_leader = leader
+    leader_changes = max(0, leader_changes - 1)  # first lap doesn't count
+
+    # --- Safety car periods ---
+    race_control = get_race_control_events(session)
+    sc_periods = len([e for e in race_control if e["type"] in ("SC", "VSC")])
+    red_flags = len([e for e in race_control if e["type"] == "RED"])
+
+    # --- Strategy diversity ---
+    stints = get_stints(session)
+    driver_strategies: dict[str, list[str]] = {}
+    for s in stints:
+        drv = s["driver"]
+        if drv not in driver_strategies:
+            driver_strategies[drv] = []
+        driver_strategies[drv].append(s["compound"])
+    unique_strategies = len(set(tuple(v) for v in driver_strategies.values()))
+
+    return {
+        "fastest_lap": fastest_lap_info,
+        "biggest_gainer": biggest_gainer,
+        "best_pit_stop": best_pit,
+        "worst_pit_stop": worst_pit,
+        "most_overtakes": most_overtakes,
+        "total_overtakes": total_overtakes,
+        "leader_changes": leader_changes,
+        "safety_car_periods": sc_periods,
+        "red_flags": red_flags,
+        "unique_strategies": unique_strategies,
+        "total_pit_stops": len(pit_stops),
+    }
 
 
 def get_live_session_info(session_key: int | str = "latest") -> dict | None:

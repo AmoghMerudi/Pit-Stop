@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { getDegradation, getStrategy, getSectors, getWeather, getGapEvolution, getRaceControl } from "@/lib/api"
-import type { DegradationCurve, StrategyResponse, SectorTime, WeatherDataPoint, GapEvolutionPoint, RaceControlEvent } from "@/lib/api"
+import { getDegradation, getStrategy, getSectors, getWeather, getGapEvolution, getRaceControl, getStints, getPositions, getLapTimes, getPitStops, getRaceSummary } from "@/lib/api"
+import type { DegradationCurve, StrategyResponse, SectorTime, WeatherDataPoint, GapEvolutionPoint, RaceControlEvent, StintInfo, PositionHistoryPoint, LapTimeStats, PitStopInfo, RaceSummary as RaceSummaryType } from "@/lib/api"
 import DegradationChart from "@/components/DegradationChart"
 import TimingTower from "@/components/TimingTower"
 import MetricTile from "@/components/MetricTile"
@@ -13,6 +13,15 @@ import LiveSessionBadge from "@/components/LiveSessionBadge"
 import SectorTimesTable from "@/components/SectorTimesTable"
 import WeatherChart from "@/components/WeatherChart"
 import GapChart from "@/components/GapChart"
+import TyreTimeline from "@/components/TyreTimeline"
+import PositionChart from "@/components/PositionChart"
+import LapTimeDistribution from "@/components/LapTimeDistribution"
+import PitStopTable from "@/components/PitStopTable"
+import RaceSummary from "@/components/RaceSummary"
+import PitWindowTimeline from "@/components/PitWindowTimeline"
+import WhatIfSimulator from "@/components/WhatIfSimulator"
+import ShareExport from "@/components/ShareExport"
+import ThemeToggle from "@/components/ThemeToggle"
 import { COMPOUND_HEX } from "@/lib/constants"
 
 interface PageProps {
@@ -55,6 +64,12 @@ export default function RacePage({ params }: PageProps) {
   const [weather, setWeather] = useState<WeatherDataPoint[] | null>(null)
   const [gaps, setGaps] = useState<GapEvolutionPoint[] | null>(null)
   const [raceControl, setRaceControl] = useState<RaceControlEvent[]>([])
+  const [stints, setStints] = useState<StintInfo[]>([])
+  const [positions, setPositions] = useState<PositionHistoryPoint[]>([])
+  const [lapTimes, setLapTimes] = useState<LapTimeStats[]>([])
+  const [pitStops, setPitStops] = useState<PitStopInfo[]>([])
+  const [summary, setSummary] = useState<RaceSummaryType | null>(null)
+  const dashboardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     params.then((p) => setId(p.id)).catch(() => setError("Failed to read route parameters"))
@@ -84,13 +99,23 @@ export default function RacePage({ params }: PageProps) {
       getWeather(year, round),
       getGapEvolution(year, round, driver),
       getRaceControl(year, round),
+      getStints(year, round),
+      getPositions(year, round),
+      getLapTimes(year, round),
+      getPitStops(year, round),
+      getRaceSummary(year, round),
     ])
-      .then(([degradationData, strategyData, weatherData, gapData, rcData]) => {
+      .then(([degradationData, strategyData, weatherData, gapData, rcData, stintData, posData, ltData, psData, summaryData]) => {
         setCurves(degradationData)
         setStrategy(strategyData)
         setWeather(weatherData)
         setGaps(gapData)
         setRaceControl(rcData)
+        setStints(stintData)
+        setPositions(posData)
+        setLapTimes(ltData)
+        setPitStops(psData)
+        setSummary(summaryData)
         const tl = strategyData.total_laps ?? strategyData.current_lap ?? 57
         const cl = strategyData.current_lap ?? tl
         setTotalLaps(tl)
@@ -139,12 +164,12 @@ export default function RacePage({ params }: PageProps) {
   const nd = strategy ? netDeltaDisplay(strategy.net_delta) : null
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0a]">
+    <div className="h-screen flex flex-col bg-[var(--surface)]">
       {/* Header bar */}
-      <header className="h-12 flex items-center justify-between px-4 border-b border-[#222] shrink-0">
+      <header className="h-12 flex items-center justify-between px-4 border-b border-[var(--border)] shrink-0">
         <Link
           href="/analyze"
-          className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors"
+          className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs transition-colors"
         >
           <span aria-hidden="true">&#8592;</span>
           Back
@@ -152,46 +177,92 @@ export default function RacePage({ params }: PageProps) {
 
         <div className="flex items-center gap-2">
           <span className="text-[#e8002d] font-bold text-sm" aria-hidden="true">&#9646;</span>
-          <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
+          <span className="text-[var(--text-primary)] font-semibold text-sm tracking-tight">PITWALL</span>
         </div>
 
         <div className="flex items-center gap-4">
           {parsed && (
-            <span className="text-xs font-mono text-[#888]">
+            <span className="text-xs font-mono text-[var(--text-secondary)]">
               {parsed.year} · R{parsed.round}
               {strategy?.circuit ? ` · ${strategy.circuit}` : ""}
               {" · "}
-              <span className="text-white font-bold">{activeDriver || parsed.driver}</span>
+              <span className="text-[var(--text-primary)] font-bold">{activeDriver || parsed.driver}</span>
             </span>
           )}
           <LiveSessionBadge />
+          <Link
+            href={`/race/${id}/h2h?d1=${activeDriver}`}
+            className="px-2 py-1 text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors"
+          >
+            H2H
+          </Link>
+          <ShareExport dashboardRef={dashboardRef} />
+          <ThemeToggle />
         </div>
       </header>
 
       {/* Error banner */}
       {error && (
-        <div className="px-4 py-3 bg-[#1a0a0a] border-b border-[#e8002d] text-[#e8002d] text-xs">
+        <div className="px-4 py-3 bg-[var(--error-bg)] border-b border-[#e8002d] text-[#e8002d] text-xs">
           <span className="font-bold">ERROR: </span>
           {error}
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading state — full page */}
       {loading && !error && (
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-[220px_1fr]">
-          <div className="border-r border-[#222] bg-[#0a0a0a] animate-pulse" />
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-4 gap-px">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-20 bg-[#111] animate-pulse" />
-              ))}
-            </div>
-            <div className="h-16 bg-[#111] animate-pulse" />
-            <div className="h-72 bg-[#111] animate-pulse" />
-            <div className="flex items-center justify-center py-8 text-[#555] text-xs">
-              Loading race data — this may take a moment if the session is not cached...
-            </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          <style>{`
+            @keyframes f1-light-load {
+              0%, 100% { background-color: #1a0a0a; box-shadow: none; border-color: #333; }
+              20%, 90% { background-color: #e8002d; box-shadow: 0 0 14px #e8002d, 0 0 28px rgba(232,0,45,0.25); border-color: #e8002d; }
+            }
+          `}</style>
+          <div className="flex items-center gap-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-8 h-8 rounded-full border-2 border-[#333]"
+                style={{
+                  animation: "f1-light-load 3s infinite",
+                  animationDelay: `${i * 0.5}s`,
+                }}
+              />
+            ))}
           </div>
+          <p className="text-[var(--text-secondary)] text-xs font-mono tracking-wider uppercase">
+            Loading race data
+          </p>
+          <p className="text-[var(--text-dim)] text-[10px]">
+            This may take a moment if the session is not cached
+          </p>
+        </div>
+      )}
+
+      {/* Sync overlay — full page */}
+      {syncMessage && (
+        <div className="fixed inset-0 z-50 bg-[var(--surface)]/90 flex flex-col items-center justify-center gap-6">
+          <style>{`
+            @keyframes f1-light {
+              0%, 100% { background-color: #1a0a0a; box-shadow: none; border-color: #333; }
+              20%, 90% { background-color: #e8002d; box-shadow: 0 0 14px #e8002d, 0 0 28px rgba(232,0,45,0.25); border-color: #e8002d; }
+            }
+          `}</style>
+          <div className="flex items-center gap-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-8 h-8 rounded-full border-2 border-[#333]"
+                style={{
+                  animation: `f1-light 3s infinite`,
+                  animationDelay: `${i * 0.5}s`,
+                }}
+              />
+            ))}
+          </div>
+          <p className="text-[var(--text-secondary)] text-xs font-mono tracking-wider uppercase">
+            {syncMessage}
+          </p>
         </div>
       )}
 
@@ -207,38 +278,12 @@ export default function RacePage({ params }: PageProps) {
           />
 
           {/* Right: Panels */}
-          <div className="overflow-y-auto relative">
-            {/* Sync overlay */}
-            {syncMessage && (
-              <div className="absolute inset-0 z-20 bg-[#0a0a0a]/90 flex flex-col items-center justify-center gap-6">
-                <style>{`
-                  @keyframes f1-light {
-                    0%, 100% { background-color: #1a0a0a; box-shadow: none; border-color: #333; }
-                    20%, 90% { background-color: #e8002d; box-shadow: 0 0 14px #e8002d, 0 0 28px rgba(232,0,45,0.25); border-color: #e8002d; }
-                  }
-                `}</style>
-                <div className="flex items-center gap-4">
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full border-2 border-[#333]"
-                      style={{
-                        animation: `f1-light 3s infinite`,
-                        animationDelay: `${i * 0.5}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <p className="text-[#888] text-xs font-mono tracking-wider uppercase">
-                  {syncMessage}
-                </p>
-              </div>
-            )}
+          <div ref={dashboardRef} className="overflow-y-auto">
 
             {/* Lap Slider */}
             {totalLaps > 0 && selectedLap !== null && (
-              <div className="px-4 py-3 border-b border-[#222] flex items-center gap-4">
-                <span className="text-[10px] font-medium text-[#555] uppercase tracking-widest shrink-0">
+              <div className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-4">
+                <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest shrink-0">
                   Lap
                 </span>
                 <input
@@ -247,15 +292,15 @@ export default function RacePage({ params }: PageProps) {
                   max={totalLaps}
                   value={selectedLap}
                   onChange={handleLapChange}
-                  className="flex-1 h-1 appearance-none bg-[#222] rounded-none cursor-pointer
+                  className="flex-1 h-1 appearance-none bg-[var(--border)] rounded-none cursor-pointer
                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-5
                     [&::-webkit-slider-thumb]:bg-[#e8002d] [&::-webkit-slider-thumb]:cursor-pointer
                     [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-[#e8002d]
                     [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
                 />
-                <span className="text-white font-mono font-bold text-sm w-16 text-right">
+                <span className="text-[var(--text-primary)] font-mono font-bold text-sm w-16 text-right">
                   {selectedLap}
-                  <span className="text-[#555] font-normal text-[10px]"> / {totalLaps}</span>
+                  <span className="text-[var(--text-muted)] font-normal text-[10px]"> / {totalLaps}</span>
                 </span>
                 {syncMessage && (
                   <span className="w-2 h-2 rounded-full bg-[#e8002d] animate-pulse shrink-0" />
@@ -264,7 +309,7 @@ export default function RacePage({ params }: PageProps) {
             )}
 
             {/* Metric tiles row */}
-            <div className="grid grid-cols-4 border-b border-[#222]">
+            <div className="grid grid-cols-4 border-b border-[var(--border)]">
               <MetricTile
                 label="Crossover"
                 value={strategy.crossover_lap >= 999 ? "—" : strategy.crossover_lap}
@@ -294,23 +339,33 @@ export default function RacePage({ params }: PageProps) {
               reason={strategy.reason}
             />
 
+            {/* Pit window timeline */}
+            {selectedLap !== null && (
+              <PitWindowTimeline
+                currentLap={selectedLap}
+                totalLaps={totalLaps}
+                crossoverLap={strategy.crossover_lap}
+                optimalLap={strategy.optimal_lap}
+              />
+            )}
+
             {/* Undercut threats */}
             {strategy.undercut_threats.length > 0 && (
-              <div className="p-4 border-b border-[#222]">
-                <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-2">
+              <div className="p-4 border-b border-[var(--border)]">
+                <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
                   Undercut Threats
                 </p>
                 <div className="space-y-1">
                   {strategy.undercut_threats.map((t) => (
                     <div key={t.driver} className="flex items-center gap-3 text-xs border-l-2 border-l-[#e8002d] pl-2 py-1">
-                      <span className="text-white font-mono font-bold w-10">{t.driver}</span>
-                      <span className="text-[#888] font-mono">P{t.position}</span>
+                      <span className="text-[var(--text-primary)] font-mono font-bold w-10">{t.driver}</span>
+                      <span className="text-[var(--text-secondary)] font-mono">P{t.position}</span>
                       <span
                         className="inline-block w-2 h-2 rounded-full"
                         style={{ backgroundColor: COMPOUND_HEX[t.compound] ?? "#555" }}
                       />
-                      <span className="text-[#888]">{t.compound}</span>
-                      <span className="text-[#888] font-mono">{t.tyre_age} laps</span>
+                      <span className="text-[var(--text-secondary)]">{t.compound}</span>
+                      <span className="text-[var(--text-secondary)] font-mono">{t.tyre_age} laps</span>
                       <span className="ml-auto text-[#e8002d] font-mono font-bold">
                         {(t.threat_score * 100).toFixed(0)}%
                       </span>
@@ -328,32 +383,32 @@ export default function RacePage({ params }: PageProps) {
 
             {/* Driver state summary */}
             {selectedDriverState && (
-              <div className="p-4 border-b border-[#222]">
-                <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-2">
+              <div className="p-4 border-b border-[var(--border)]">
+                <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
                   Driver State at Lap {selectedLap}
                 </p>
                 <div className="grid grid-cols-4 gap-4">
                   <div>
-                    <p className="text-[#555] text-[10px] uppercase mb-0.5">Position</p>
-                    <p className="text-white font-mono font-bold text-lg">P{selectedDriverState.position}</p>
+                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Position</p>
+                    <p className="text-[var(--text-primary)] font-mono font-bold text-lg">P{selectedDriverState.position}</p>
                   </div>
                   <div>
-                    <p className="text-[#555] text-[10px] uppercase mb-0.5">Compound</p>
+                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Compound</p>
                     <div className="flex items-center gap-2">
                       <span
                         className="inline-block w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: COMPOUND_HEX[selectedDriverState.compound] ?? "#555" }}
                       />
-                      <p className="text-white font-mono font-bold text-lg">{selectedDriverState.compound}</p>
+                      <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{selectedDriverState.compound}</p>
                     </div>
                   </div>
                   <div>
-                    <p className="text-[#555] text-[10px] uppercase mb-0.5">Tyre Age</p>
-                    <p className="text-white font-mono font-bold text-lg">{selectedDriverState.tyre_age} laps</p>
+                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Tyre Age</p>
+                    <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{selectedDriverState.tyre_age} laps</p>
                   </div>
                   <div>
-                    <p className="text-[#555] text-[10px] uppercase mb-0.5">Gap to Leader</p>
-                    <p className="text-white font-mono font-bold text-lg">
+                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Gap to Leader</p>
+                    <p className="text-[var(--text-primary)] font-mono font-bold text-lg">
                       {selectedDriverState.gap_to_leader === 0 ? "LEADER" : `+${selectedDriverState.gap_to_leader.toFixed(1)}s`}
                     </p>
                   </div>
@@ -362,17 +417,17 @@ export default function RacePage({ params }: PageProps) {
             )}
 
             {/* Strategy summary */}
-            <div className="p-4 border-b border-[#222]">
-              <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-2">
+            <div className="p-4 border-b border-[var(--border)]">
+              <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
                 Strategy Summary
               </p>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-[#555] text-[10px] uppercase mb-0.5">Remaining</p>
-                  <p className="text-white font-mono font-bold text-lg">{strategy.remaining_laps} laps</p>
+                  <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Remaining</p>
+                  <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{strategy.remaining_laps} laps</p>
                 </div>
                 <div>
-                  <p className="text-[#555] text-[10px] uppercase mb-0.5">Best Alternative</p>
+                  <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Best Alternative</p>
                   <div className="flex items-center gap-2">
                     {strategy.best_alt && (
                       <span
@@ -380,15 +435,30 @@ export default function RacePage({ params }: PageProps) {
                         style={{ backgroundColor: COMPOUND_HEX[strategy.best_alt] ?? "#555" }}
                       />
                     )}
-                    <p className="text-white font-mono font-bold text-lg">{strategy.best_alt ?? "—"}</p>
+                    <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{strategy.best_alt ?? "—"}</p>
                   </div>
                 </div>
                 <div>
-                  <p className="text-[#555] text-[10px] uppercase mb-0.5">Rivals on Track</p>
-                  <p className="text-white font-mono font-bold text-lg">{strategy.all_drivers.length}</p>
+                  <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Rivals on Track</p>
+                  <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{strategy.all_drivers.length}</p>
                 </div>
               </div>
             </div>
+
+            {/* What-If Simulator */}
+            {parsed && selectedLap !== null && selectedDriverState && (
+              <WhatIfSimulator
+                year={parsed.year}
+                round={parsed.round}
+                driver={activeDriver}
+                totalLaps={totalLaps}
+                currentLap={selectedLap}
+                currentCompound={selectedDriverState.compound}
+              />
+            )}
+
+            {/* Race Summary */}
+            {summary && <RaceSummary summary={summary} />}
 
             {/* Circuit info */}
             <CircuitInfo
@@ -407,9 +477,35 @@ export default function RacePage({ params }: PageProps) {
               <GapChart data={gaps} currentLap={selectedLap} driver={activeDriver} raceControl={raceControl} />
             )}
 
+            {/* Position changes chart */}
+            {positions.length > 0 && (
+              <PositionChart
+                data={positions}
+                highlightDriver={activeDriver}
+                raceControl={raceControl}
+                currentLap={selectedLap}
+                onSelectDriver={handleDriverSelect}
+              />
+            )}
+
             {/* Sector times table */}
             {sectors && sectors.length > 0 && (
               <SectorTimesTable sectors={sectors} selectedDriver={activeDriver} />
+            )}
+
+            {/* Lap time distribution */}
+            {lapTimes.length > 0 && (
+              <LapTimeDistribution data={lapTimes} highlightDriver={activeDriver} onSelectDriver={handleDriverSelect} />
+            )}
+
+            {/* Tyre strategy timeline */}
+            {stints.length > 0 && (
+              <TyreTimeline stints={stints} totalLaps={totalLaps} onSelectDriver={handleDriverSelect} highlightDriver={activeDriver} />
+            )}
+
+            {/* Pit stop performance */}
+            {pitStops.length > 0 && (
+              <PitStopTable stops={pitStops} highlightDriver={activeDriver} onSelectDriver={handleDriverSelect} />
             )}
           </div>
         </div>
@@ -417,7 +513,7 @@ export default function RacePage({ params }: PageProps) {
 
       {/* No-data state */}
       {!loading && !error && curves && strategy === null && (
-        <div className="flex-1 flex items-center justify-center text-[#555] text-xs">
+        <div className="flex-1 flex items-center justify-center text-[var(--text-muted)] text-xs">
           No strategy data available for this selection.
         </div>
       )}

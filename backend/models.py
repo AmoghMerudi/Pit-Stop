@@ -94,6 +94,73 @@ class RaceControlEvent(BaseModel):
     end_lap: int
 
 
+class StintInfo(BaseModel):
+    driver: str
+    stint_number: int
+    compound: str
+    lap_start: int
+    lap_end: int
+
+
+class PositionHistoryPoint(BaseModel):
+    lap: int
+    positions: dict[str, int]
+
+
+class LapTimeStats(BaseModel):
+    driver: str
+    median: float
+    q1: float
+    q3: float
+    min: float
+    max: float
+    whisker_low: float
+    whisker_high: float
+    lap_count: int
+
+
+class PitStopInfo(BaseModel):
+    driver: str
+    lap: int
+    pit_duration: float
+    compound_before: str
+    compound_after: str
+
+
+class WhatIfResponse(BaseModel):
+    driver: str
+    hypothetical_pit_lap: int
+    new_compound: str
+    projected_net_delta: float
+    projected_crossover: int
+    projected_optimal_lap: int
+    recommendation: str
+    actual_compound: str
+    actual_tyre_age: int
+
+
+class RaceSummary(BaseModel):
+    fastest_lap: dict | None = None
+    biggest_gainer: dict | None = None
+    best_pit_stop: dict | None = None
+    worst_pit_stop: dict | None = None
+    most_overtakes: dict | None = None
+    total_overtakes: int = 0
+    leader_changes: int = 0
+    safety_car_periods: int = 0
+    red_flags: int = 0
+    unique_strategies: int = 0
+    total_pit_stops: int = 0
+
+
+class TyrePrediction(BaseModel):
+    driver: str
+    compound: str
+    tyre_age: int
+    predicted_cliff_lap: int
+    estimated_laps_remaining: int
+
+
 class LiveSessionResponse(BaseModel):
     active: bool
     session_key: int | None = None

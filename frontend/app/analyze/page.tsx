@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import LiveSessionBadge from "@/components/LiveSessionBadge"
 import LiveTicker from "@/components/LiveTicker"
+import ThemeToggle from "@/components/ThemeToggle"
 import { getSchedule } from "@/lib/api"
 import type { RaceEvent } from "@/lib/api"
 
 const INPUT_CLASS =
-  "w-full bg-[#0a0a0a] border border-[#222] px-3 py-2.5 text-white text-sm font-mono " +
+  "w-full bg-[var(--surface)] border border-[var(--border)] px-3 py-2.5 text-[var(--text-primary)] text-sm font-mono " +
   "focus:outline-none focus:border-[#e8002d] transition-colors " +
   "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 
 const SELECT_CLASS =
-  "w-full bg-[#0a0a0a] border border-[#222] px-3 py-2.5 text-white text-sm font-mono " +
+  "w-full bg-[var(--surface)] border border-[var(--border)] px-3 py-2.5 text-[var(--text-primary)] text-sm font-mono " +
   "focus:outline-none focus:border-[#e8002d] transition-colors cursor-pointer"
 
 export default function AnalyzePage() {
@@ -47,19 +48,20 @@ export default function AnalyzePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+    <div className="min-h-screen bg-[var(--surface)] flex flex-col">
       {/* Nav */}
-      <header className="h-14 flex items-center justify-between px-6 border-b border-[#222] shrink-0">
-        <Link href="/" className="flex items-center gap-2 text-[#555] hover:text-white transition-colors">
+      <header className="h-14 flex items-center justify-between px-6 border-b border-[var(--border)] shrink-0">
+        <Link href="/" className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
           <span aria-hidden="true">&#8592;</span>
           <span className="text-[#e8002d] font-bold text-lg red-glow" aria-hidden="true">&#9646;</span>
-          <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
+          <span className="text-[var(--text-primary)] font-semibold text-sm tracking-tight">PITWALL</span>
         </Link>
         <nav className="flex items-center gap-6">
-          <Link href="/live" className="text-[#888] hover:text-white text-xs uppercase tracking-widest transition-colors">
+          <Link href="/live" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs uppercase tracking-widest transition-colors">
             Live
           </Link>
           <LiveSessionBadge />
+          <ThemeToggle />
         </nav>
       </header>
 
@@ -68,14 +70,14 @@ export default function AnalyzePage() {
 
       {/* Form */}
       <section className="flex-1 flex flex-col items-center justify-center px-6">
-        <h1 className="text-2xl font-bold text-white tracking-tight mb-2">Analyze a Race</h1>
-        <p className="text-[#555] text-xs mb-8">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight mb-2">Analyze a Race</h1>
+        <p className="text-[var(--text-muted)] text-xs mb-8">
           Select a season, grand prix, and driver to view pit strategy analysis
         </p>
 
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
           <div>
-            <label htmlFor="year" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
+            <label htmlFor="year" className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">
               Season
             </label>
             <select
@@ -95,11 +97,11 @@ export default function AnalyzePage() {
           </div>
 
           <div>
-            <label htmlFor="round" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
+            <label htmlFor="round" className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">
               Grand Prix
             </label>
             {loadingSchedule ? (
-              <div className={`${INPUT_CLASS} text-[#555] flex items-center gap-2`}>
+              <div className={`${INPUT_CLASS} text-[var(--text-muted)] flex items-center gap-2`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e8002d] animate-pulse" />
                 Loading calendar...
               </div>
@@ -120,7 +122,7 @@ export default function AnalyzePage() {
           </div>
 
           <div>
-            <label htmlFor="driver" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
+            <label htmlFor="driver" className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">
               Driver Code
             </label>
             <input
@@ -131,7 +133,7 @@ export default function AnalyzePage() {
               onChange={(e) => setDriver(e.target.value.toUpperCase())}
               placeholder="VER"
               required
-              className={`${INPUT_CLASS} uppercase placeholder:normal-case placeholder:text-[#333]`}
+              className={`${INPUT_CLASS} uppercase placeholder:normal-case placeholder:text-[var(--text-dim)]`}
             />
           </div>
 
@@ -145,7 +147,7 @@ export default function AnalyzePage() {
           </button>
         </form>
 
-        <p className="text-[#333] text-[10px] uppercase tracking-widest mt-6">
+        <p className="text-[var(--text-dim)] text-[10px] uppercase tracking-widest mt-6">
           Supports all races from 2018 to {new Date().getFullYear()}
         </p>
       </section>

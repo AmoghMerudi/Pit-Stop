@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pit Stop — F1 Strategy Optimizer",
+  title: "Pitwall — F1 Strategy Optimizer",
   description: "Real-time F1 tyre degradation curves and pit window recommendations powered by FastF1 and OpenF1 data.",
 };
 
@@ -27,7 +27,14 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">{children}</body>
+      <body className="min-h-full flex flex-col bg-[var(--surface)] text-[var(--foreground)]">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{const t=localStorage.getItem("pitwall-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}`,
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

@@ -3,6 +3,29 @@
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
+  --surface: #0a0a0a;
+  --surface-raised: #111;
+  --border: #222;
+  --border-hover: #555;
+  --text-primary: #ffffff;
+  --text-secondary: #888;
+  --text-muted: #555;
+  --text-dim: #333;
+  --error-bg: #1a0a0a;
+}
+
+[data-theme="light"] {
+  --background: #f5f5f5;
+  --foreground: #111;
+  --surface: #ffffff;
+  --surface-raised: #f0f0f0;
+  --border: #ddd;
+  --border-hover: #999;
+  --text-primary: #111;
+  --text-secondary: #555;
+  --text-muted: #888;
+  --text-dim: #bbb;
+  --error-bg: #fff0f0;
 }
 
 @theme inline {
@@ -13,7 +36,7 @@
 }
 
 body {
-  background: #0a0a0a;
+  background: var(--surface);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -42,10 +65,10 @@ body {
   width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--surface);
 }
 ::-webkit-scrollbar-thumb {
-  background: #222;
+  background: var(--border);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
