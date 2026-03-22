@@ -39,6 +39,7 @@ export interface DriverStateResponse {
   tyre_age: number
   position: number
   gap_to_leader: number
+  status: string // "", "PIT", "DNF", "DSQ", "RETIRED"
 }
 
 export interface StrategyResponse {
@@ -79,6 +80,15 @@ export interface LiveStint {
 
 // --- API functions ---
 
+export interface RaceEvent {
+  round: number
+  name: string
+}
+
+export function getSchedule(year: number): Promise<RaceEvent[]> {
+  return apiFetch(`/schedule/${year}`)
+}
+
 export function getDegradation(year: number, round: number): Promise<DegradationCurve[]> {
   return apiFetch(`/race/${year}/${round}/degradation`)
 }
@@ -86,6 +96,51 @@ export function getDegradation(year: number, round: number): Promise<Degradation
 export function getStrategy(year: number, round: number, driver: string, lap?: number): Promise<StrategyResponse> {
   const query = lap !== undefined ? `?lap=${lap}` : ""
   return apiFetch(`/race/${year}/${round}/strategy/${driver}${query}`)
+}
+
+export interface SectorTime {
+  driver: string
+  s1: number | null
+  s2: number | null
+  s3: number | null
+  s1_color: "purple" | "green" | "yellow"
+  s2_color: "purple" | "green" | "yellow"
+  s3_color: "purple" | "green" | "yellow"
+}
+
+export interface WeatherDataPoint {
+  lap: number
+  air_temp: number
+  track_temp: number
+  humidity: number
+  rainfall: boolean
+}
+
+export interface GapEvolutionPoint {
+  lap: number
+  gaps: Record<string, number>
+}
+
+export function getSectors(year: number, round: number, lap: number): Promise<SectorTime[]> {
+  return apiFetch(`/race/${year}/${round}/sectors?lap=${lap}`)
+}
+
+export function getWeather(year: number, round: number): Promise<WeatherDataPoint[]> {
+  return apiFetch(`/race/${year}/${round}/weather`)
+}
+
+export function getGapEvolution(year: number, round: number, driver: string): Promise<GapEvolutionPoint[]> {
+  return apiFetch(`/race/${year}/${round}/gaps/${driver}`)
+}
+
+export interface RaceControlEvent {
+  type: "SC" | "VSC" | "RED"
+  start_lap: number
+  end_lap: number
+}
+
+export function getRaceControl(year: number, round: number): Promise<RaceControlEvent[]> {
+  return apiFetch(`/race/${year}/${round}/race-control`)
 }
 
 export function getLiveLaps(): Promise<LiveLap[]> {

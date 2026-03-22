@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from benchmarks import load_baseline_curves
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds
-from ingestion import CURRENT_YEAR, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_race_state, get_total_laps, load_session
-from models import DegradationCurve, ErrorResponse, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, StrategyResponse
+from ingestion import CURRENT_YEAR, get_driver_statuses, get_gap_evolution, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_race_control_events, get_race_state, get_sector_times, get_total_laps, get_weather_data, load_session
+from models import DegradationCurve, ErrorResponse, GapEvolutionPoint, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, RaceControlEvent, SectorTime, StrategyResponse, WeatherDataPoint
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
 
@@ -37,6 +37,23 @@ app.add_middleware(
 @app.get("/")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/schedule/{year}")
+def get_schedule(year: int):
+    """Return the race calendar for a given year."""
+    try:
+        import fastf1
+        schedule = fastf1.get_event_schedule(year)
+        # Filter out testing events (RoundNumber == 0)
+        races = schedule[schedule["RoundNumber"] > 0]
+        return [
+            {"round": int(row["RoundNumber"]), "name": row["EventName"]}
+            for _, row in races.iterrows()
+        ]
+    except Exception as exc:
+        logger.error("Error in /schedule/%d: %s", year, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not load schedule")
 
 
 @app.get("/race/{year}/{round_number}/degradation", response_model=list[DegradationCurve])
@@ -72,7 +89,8 @@ def get_strategy(year: int, round_number: int, driver: str, lap: int | None = No
         # Only use laps up to the requested lap for driver states
         laps_at_lap = laps[laps["lap_number"] <= current_lap]
         race_state = get_race_state(session, current_lap)
-        driver_states = build_driver_states(laps_at_lap, current_lap, race_state)
+        statuses = get_driver_statuses(session, current_lap)
+        driver_states = build_driver_states(laps_at_lap, current_lap, race_state, statuses)
         circuit = session.event.get("Location") if hasattr(session, "event") else None
         result = recommend(driver, driver_states, curves, circuit, remaining_laps)
         return StrategyResponse(**result, remaining_laps=remaining_laps, total_laps=total_laps, current_lap=current_lap)
@@ -85,6 +103,55 @@ def get_strategy(year: int, round_number: int, driver: str, lap: int | None = No
         raise
     except Exception as exc:
         logger.error("Error in /race/%d/%d/strategy/%s: %s", year, round_number, driver, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/sectors", response_model=list[SectorTime])
+def get_sectors(year: int, round_number: int, lap: int = 1):
+    try:
+        session = load_session(year, round_number)
+        return get_sector_times(session, lap)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/sectors: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/weather", response_model=list[WeatherDataPoint])
+def get_weather(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return get_weather_data(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/weather: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/gaps/{driver}", response_model=list[GapEvolutionPoint])
+def get_gaps(year: int, round_number: int, driver: str):
+    driver = driver.upper()
+    try:
+        session = load_session(year, round_number)
+        return get_gap_evolution(session, driver)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/gaps/%s: %s", year, round_number, driver, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/race-control", response_model=list[RaceControlEvent])
+def get_race_control(year: int, round_number: int):
+    try:
+        session = load_session(year, round_number)
+        return get_race_control_events(session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/race-control: %s", year, round_number, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

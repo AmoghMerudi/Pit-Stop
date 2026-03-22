@@ -27,6 +27,7 @@ class DriverState(BaseModel):
     tyre_age: int
     position: int
     gap_to_leader: float
+    status: str = ""  # "", "PIT", "DNF", "DSQ", "RETIRED"
 
 
 class ThreatDetail(BaseModel):
@@ -62,6 +63,35 @@ class ManualStrategyRequest(BaseModel):
     tyre_age: int    # >= 0, validated in handler
     current_lap: int = 0      # current lap in race (0 = unknown)
     total_laps: int = 57      # total race laps (default typical F1 race)
+
+
+class SectorTime(BaseModel):
+    driver: str
+    s1: float | None
+    s2: float | None
+    s3: float | None
+    s1_color: str
+    s2_color: str
+    s3_color: str
+
+
+class WeatherDataPoint(BaseModel):
+    lap: int
+    air_temp: float
+    track_temp: float
+    humidity: float
+    rainfall: bool
+
+
+class GapEvolutionPoint(BaseModel):
+    lap: int
+    gaps: dict[str, float]
+
+
+class RaceControlEvent(BaseModel):
+    type: str  # "SC", "VSC", "RED"
+    start_lap: int
+    end_lap: int
 
 
 class LiveSessionResponse(BaseModel):

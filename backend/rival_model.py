@@ -13,20 +13,35 @@ def build_driver_states(
     laps_df: pd.DataFrame,
     current_lap: int,
     race_state: pd.DataFrame | None = None,
+    driver_statuses: dict[str, str] | None = None,
 ) -> dict[str, dict]:
     """
     Build a snapshot of every driver's current state at the given lap.
-    Returns { driver: { compound, tyre_age, position, gap_to_leader } }
+    Returns { driver: { compound, tyre_age, position, gap_to_leader, status } }
 
     race_state: optional DataFrame from ingestion.get_race_state() with columns
         driver, position, gap_to_leader — provides accurate position and gap
         computed from all laps (not just quicklaps).
+    driver_statuses: optional dict { driver: status_str } where status is
+        "", "PIT", "DNF", "DSQ", "RETIRED".
     """
+    statuses = driver_statuses or {}
+
+    # Get all unique drivers from the full laps DataFrame + statuses
+    all_drivers_set = set(laps_df["driver"].unique())
+    all_drivers_set.update(statuses.keys())
+
+    # Current lap data
     lap_data = laps_df[laps_df["lap_number"] == current_lap].copy()
 
-    if lap_data.empty:
-        # Fall back to most recent lap per driver
-        lap_data = laps_df.sort_values("lap_number").groupby("driver").last().reset_index()
+    # For drivers not present at current_lap, use their most recent lap
+    drivers_at_lap = set(lap_data["driver"].unique())
+    missing = all_drivers_set - drivers_at_lap
+    if missing:
+        remaining = laps_df[laps_df["driver"].isin(missing)]
+        if not remaining.empty:
+            fallback = remaining.sort_values("lap_number").groupby("driver").last().reset_index()
+            lap_data = pd.concat([lap_data, fallback], ignore_index=True)
 
     # Build a lookup from race_state if provided
     rs_lookup: dict[str, dict] = {}
@@ -52,7 +67,19 @@ def build_driver_states(
             "tyre_age": int(row["tyre_age"]),
             "position": position,
             "gap_to_leader": gap,
+            "status": statuses.get(driver, ""),
         }
+
+    # Add drivers from statuses that weren't found in laps data at all (e.g. DNS, early DNF)
+    for driver, status in statuses.items():
+        if driver not in states and status:
+            states[driver] = {
+                "compound": "UNKNOWN",
+                "tyre_age": 0,
+                "position": 0,
+                "gap_to_leader": 0.0,
+                "status": status,
+            }
 
     return states
 

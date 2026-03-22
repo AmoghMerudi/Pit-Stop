@@ -1,15 +1,18 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { getDegradation, getStrategy } from "@/lib/api"
-import type { DegradationCurve, StrategyResponse } from "@/lib/api"
+import { getDegradation, getStrategy, getSectors, getWeather, getGapEvolution, getRaceControl } from "@/lib/api"
+import type { DegradationCurve, StrategyResponse, SectorTime, WeatherDataPoint, GapEvolutionPoint, RaceControlEvent } from "@/lib/api"
 import DegradationChart from "@/components/DegradationChart"
 import TimingTower from "@/components/TimingTower"
 import MetricTile from "@/components/MetricTile"
 import PitCountdown from "@/components/PitCountdown"
 import CircuitInfo from "@/components/CircuitInfo"
 import LiveSessionBadge from "@/components/LiveSessionBadge"
+import SectorTimesTable from "@/components/SectorTimesTable"
+import WeatherChart from "@/components/WeatherChart"
+import GapChart from "@/components/GapChart"
 import { COMPOUND_HEX } from "@/lib/constants"
 
 interface PageProps {
@@ -39,13 +42,19 @@ export default function RacePage({ params }: PageProps) {
   const [curves, setCurves] = useState<DegradationCurve[] | null>(null)
   const [strategy, setStrategy] = useState<StrategyResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
-  const [strategyLoading, setStrategyLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   // Lap slider + driver selection state
   const [selectedLap, setSelectedLap] = useState<number | null>(null)
   const [totalLaps, setTotalLaps] = useState<number>(0)
   const [activeDriver, setActiveDriver] = useState<string>("")
+
+  // New data panels
+  const [sectors, setSectors] = useState<SectorTime[] | null>(null)
+  const [weather, setWeather] = useState<WeatherDataPoint[] | null>(null)
+  const [gaps, setGaps] = useState<GapEvolutionPoint[] | null>(null)
+  const [raceControl, setRaceControl] = useState<RaceControlEvent[]>([])
 
   useEffect(() => {
     params.then((p) => setId(p.id)).catch(() => setError("Failed to read route parameters"))
@@ -69,14 +78,25 @@ export default function RacePage({ params }: PageProps) {
 
     setActiveDriver(driver)
 
-    Promise.all([getDegradation(year, round), getStrategy(year, round, driver)])
-      .then(([degradationData, strategyData]) => {
+    Promise.all([
+      getDegradation(year, round),
+      getStrategy(year, round, driver),
+      getWeather(year, round),
+      getGapEvolution(year, round, driver),
+      getRaceControl(year, round),
+    ])
+      .then(([degradationData, strategyData, weatherData, gapData, rcData]) => {
         setCurves(degradationData)
         setStrategy(strategyData)
+        setWeather(weatherData)
+        setGaps(gapData)
+        setRaceControl(rcData)
         const tl = strategyData.total_laps ?? strategyData.current_lap ?? 57
         const cl = strategyData.current_lap ?? tl
         setTotalLaps(tl)
         setSelectedLap(cl)
+        // Fetch sectors for the current lap
+        getSectors(year, round, cl).then(setSectors).catch(() => {})
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "An unexpected error occurred"
@@ -85,34 +105,29 @@ export default function RacePage({ params }: PageProps) {
       .finally(() => setLoading(false))
   }, [id])
 
-  // Re-fetch strategy for a given driver + lap
-  const fetchStrategy = useCallback(
-    async (driver: string, lap?: number) => {
-      const parsed = id ? parseId(id) : null
-      if (!parsed) return
-
-      setStrategyLoading(true)
-      try {
-        const strategyData = await getStrategy(parsed.year, parsed.round, driver, lap)
-        setStrategy(strategyData)
-      } catch {
-        // Keep existing strategy on error
-      } finally {
-        setStrategyLoading(false)
-      }
-    },
-    [id]
-  )
-
   function handleLapChange(e: React.ChangeEvent<HTMLInputElement>) {
     const lap = parseInt(e.target.value, 10)
     setSelectedLap(lap)
-    fetchStrategy(activeDriver, lap)
+    if (!parsed) return
+    setSyncMessage("Optimizing race strategy")
+    Promise.all([
+      getStrategy(parsed.year, parsed.round, activeDriver, lap).then(setStrategy).catch(() => {}),
+      getSectors(parsed.year, parsed.round, lap).then(setSectors).catch(() => {}),
+    ]).finally(() => setSyncMessage(null))
   }
 
   function handleDriverSelect(driver: string) {
     setActiveDriver(driver)
-    fetchStrategy(driver, selectedLap ?? undefined)
+    if (!parsed) return
+    setSyncMessage("Race control is syncing data")
+    const lap = selectedLap ?? undefined
+    Promise.all([
+      getStrategy(parsed.year, parsed.round, driver, lap).then(setStrategy).catch(() => {}),
+      getGapEvolution(parsed.year, parsed.round, driver).then(setGaps).catch(() => {}),
+      lap !== undefined
+        ? getSectors(parsed.year, parsed.round, lap).then(setSectors).catch(() => {})
+        : Promise.resolve(),
+    ]).finally(() => setSyncMessage(null))
   }
 
   const parsed = id ? parseId(id) : null
@@ -192,7 +207,34 @@ export default function RacePage({ params }: PageProps) {
           />
 
           {/* Right: Panels */}
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto relative">
+            {/* Sync overlay */}
+            {syncMessage && (
+              <div className="absolute inset-0 z-20 bg-[#0a0a0a]/90 flex flex-col items-center justify-center gap-6">
+                <style>{`
+                  @keyframes f1-light {
+                    0%, 100% { background-color: #1a0a0a; box-shadow: none; border-color: #333; }
+                    20%, 90% { background-color: #e8002d; box-shadow: 0 0 14px #e8002d, 0 0 28px rgba(232,0,45,0.25); border-color: #e8002d; }
+                  }
+                `}</style>
+                <div className="flex items-center gap-4">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="w-8 h-8 rounded-full border-2 border-[#333]"
+                      style={{
+                        animation: `f1-light 3s infinite`,
+                        animationDelay: `${i * 0.5}s`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <p className="text-[#888] text-xs font-mono tracking-wider uppercase">
+                  {syncMessage}
+                </p>
+              </div>
+            )}
+
             {/* Lap Slider */}
             {totalLaps > 0 && selectedLap !== null && (
               <div className="px-4 py-3 border-b border-[#222] flex items-center gap-4">
@@ -215,7 +257,7 @@ export default function RacePage({ params }: PageProps) {
                   {selectedLap}
                   <span className="text-[#555] font-normal text-[10px]"> / {totalLaps}</span>
                 </span>
-                {strategyLoading && (
+                {syncMessage && (
                   <span className="w-2 h-2 rounded-full bg-[#e8002d] animate-pulse shrink-0" />
                 )}
               </div>
@@ -319,7 +361,7 @@ export default function RacePage({ params }: PageProps) {
               </div>
             )}
 
-            {/* Remaining laps + best alt */}
+            {/* Strategy summary */}
             <div className="p-4 border-b border-[#222]">
               <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-2">
                 Strategy Summary
@@ -354,6 +396,21 @@ export default function RacePage({ params }: PageProps) {
               pitLoss={strategy.pit_loss}
               curves={curves}
             />
+
+            {/* Weather chart */}
+            {weather && weather.length > 0 && (
+              <WeatherChart data={weather} currentLap={selectedLap} />
+            )}
+
+            {/* Gap evolution chart */}
+            {gaps && gaps.length > 0 && (
+              <GapChart data={gaps} currentLap={selectedLap} driver={activeDriver} raceControl={raceControl} />
+            )}
+
+            {/* Sector times table */}
+            {sectors && sectors.length > 0 && (
+              <SectorTimesTable sectors={sectors} selectedDriver={activeDriver} />
+            )}
           </div>
         </div>
       )}

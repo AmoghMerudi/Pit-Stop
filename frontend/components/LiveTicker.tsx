@@ -1,101 +1,110 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
-import { getLiveLaps } from "@/lib/api"
-import type { LiveLap } from "@/lib/api"
+import { useEffect, useState } from "react"
+import { getLiveSession, getLiveStints, getLiveLaps } from "@/lib/api"
+import type { LiveSessionInfo, LiveLap, LiveStint } from "@/lib/api"
+
+interface TickerData {
+  session: LiveSessionInfo
+  currentLap: number
+  totalLaps: number
+  compound: string | null
+  stintLap: number | null
+}
 
 export default function LiveTicker() {
-  const [laps, setLaps] = useState<LiveLap[]>([])
-  const [flash, setFlash] = useState<boolean>(false)
-  const [fetchError, setFetchError] = useState<boolean>(false)
-  const prevDataRef = useRef<string>("")
+  const [data, setData] = useState<TickerData | null>(null)
 
   useEffect(() => {
-    let active = true
+    let mounted = true
 
-    async function poll() {
-      if (!active) return
+    async function fetchData() {
       try {
-        const data = await getLiveLaps()
-        if (!active) return
+        const [session, laps, stints] = await Promise.all([
+          getLiveSession(),
+          getLiveLaps().catch(() => [] as LiveLap[]),
+          getLiveStints().catch(() => [] as LiveStint[]),
+        ])
 
-        const serialised = JSON.stringify(data)
-        if (serialised !== prevDataRef.current && data.length > 0) {
-          prevDataRef.current = serialised
-          setLaps(data)
-          setFetchError(false)
-          // Trigger flash animation
-          setFlash(true)
-          setTimeout(() => setFlash(false), 600)
-        } else if (data.length === 0) {
-          setLaps([])
-          setFetchError(false)
+        if (!mounted || !session.active) {
+          if (mounted) setData(null)
+          return
+        }
+
+        let currentLap = 0
+        if (laps.length > 0) {
+          currentLap = Math.max(...laps.map((l) => l.lap_number))
+        }
+
+        const totalLaps = 57
+
+        let compound: string | null = null
+        let stintLap: number | null = null
+        if (stints.length > 0) {
+          const latest = stints.reduce((a, b) =>
+            b.stint_number > a.stint_number ? b : a
+          )
+          compound = latest.compound
+          stintLap = currentLap > 0 ? currentLap - latest.lap_start : null
+        }
+
+        if (mounted) {
+          setData({ session, currentLap, totalLaps, compound, stintLap })
         }
       } catch {
-        if (active) setFetchError(true)
+        if (mounted) setData(null)
       }
     }
 
-    // Initial fetch
-    poll()
-    const interval = setInterval(poll, 2000)
-
+    fetchData()
+    const interval = setInterval(fetchData, 15_000)
     return () => {
-      active = false
+      mounted = false
       clearInterval(interval)
     }
   }, [])
 
+  if (!data) return null
+
+  const { session, currentLap, totalLaps, compound, stintLap } = data
+
   return (
-    <div className="bg-[#111] border border-[#222] rounded-lg p-4">
-      {/* Header row */}
-      <div className="flex items-center gap-3 mb-3">
-        <h2 className="text-sm font-medium text-[#888] uppercase tracking-wider">
-          Live Timing
-        </h2>
-        <span className="flex items-center gap-1.5 bg-[#e8002d] text-white text-xs font-bold px-2 py-0.5 rounded">
-          <span
-            className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-pulse"
-            aria-hidden="true"
-          />
-          Live
+    <div className="bg-[#0a0a0a] border-b border-[#222] px-6 py-2.5 flex items-center justify-between">
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#39b54a] animate-pulse" />
+          <span className="text-[#39b54a] text-[10px] font-bold uppercase tracking-widest">
+            Live: {session.circuit ?? session.country ?? "Active"}
+          </span>
+        </div>
+        <span className="text-[#333] text-[10px]">|</span>
+        <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">
+          {session.session_type ?? "Race"}
         </span>
+        {currentLap > 0 && (
+          <>
+            <span className="text-[#333] text-[10px]">|</span>
+            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">
+              LAP {currentLap} / {totalLaps}
+            </span>
+          </>
+        )}
       </div>
-
-      {/* Error or empty state */}
-      {fetchError && (
-        <p className="text-[#888] text-sm">No live session</p>
-      )}
-
-      {!fetchError && laps.length === 0 && (
-        <p className="text-[#888] text-sm">No live session</p>
-      )}
-
-      {/* Lap list */}
-      {!fetchError && laps.length > 0 && (
-        <ul
-          className={`space-y-1 transition-opacity duration-300 ${flash ? "opacity-60" : "opacity-100"}`}
-        >
-          {laps.map((lap) => (
-            <li
-              key={`${lap.driver_number}-${lap.lap_number}`}
-              className={`flex items-center justify-between text-sm py-1 border-b border-[#1a1a1a] last:border-b-0
-                          ${flash ? "border-l-2 border-l-[#e8002d]" : "border-l-2 border-l-transparent"}
-                          transition-colors duration-300`}
-            >
-              <span className="text-[#888] w-10 shrink-0">#{lap.driver_number}</span>
-              <span className="text-white font-medium flex-1">
-                Lap {lap.lap_number}
-              </span>
-              {lap.lap_duration !== null && (
-                <span className="text-[#888] text-xs font-mono">
-                  {lap.lap_duration.toFixed(3)}s
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="flex items-center gap-4">
+        {compound && (
+          <span className="text-[#e8002d] text-[10px] font-bold uppercase tracking-widest font-mono">
+            {compound}{stintLap !== null ? ` L${stintLap}` : ""}
+          </span>
+        )}
+        {session.year && session.round && (
+          <>
+            <span className="text-[#333] text-[10px]">|</span>
+            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">
+              {session.year} R{session.round}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   )
 }
