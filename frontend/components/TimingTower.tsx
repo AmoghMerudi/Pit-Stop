@@ -23,13 +23,13 @@ export default function TimingTower({ drivers, selectedDriver, threats }: Timing
   return (
     <div className="h-full border-r border-[#222] overflow-y-auto">
       <div className="p-3 border-b border-[#222]">
-        <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest">
+        <p className="text-xs font-medium text-[#555] uppercase tracking-widest">
           Timing Tower
         </p>
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1.5 text-[10px] text-[#444] uppercase tracking-wider font-medium border-b border-[#222]">
+      <div className="grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1.5 text-xs text-[#444] uppercase tracking-wider font-medium border-b border-[#222]">
         <span>P</span>
         <span>DRV</span>
         <span>GAP</span>
@@ -53,11 +53,11 @@ export default function TimingTower({ drivers, selectedDriver, threats }: Timing
             `}
           >
             {/* Position */}
-            <span className="text-xs font-mono text-[#555]">{d.position}</span>
+            <span className="text-sm font-mono text-[#555]">{d.position}</span>
 
             {/* Driver code */}
             <span
-              className={`text-xs font-mono font-bold ${
+              className={`text-sm font-mono font-bold ${
                 isSelected ? "text-[#e8002d]" : "text-white"
               }`}
             >
@@ -65,7 +65,7 @@ export default function TimingTower({ drivers, selectedDriver, threats }: Timing
             </span>
 
             {/* Gap */}
-            <span className="text-xs font-mono text-[#666] truncate">
+            <span className="text-sm font-mono text-[#666] truncate">
               {formatGap(d.gap_to_leader, d.position)}
             </span>
 
@@ -77,7 +77,7 @@ export default function TimingTower({ drivers, selectedDriver, threats }: Timing
 
             {/* Tyre age */}
             <span
-              className={`text-xs font-mono ${
+              className={`text-sm font-mono ${
                 d.tyre_age > 20 ? "text-white font-bold" : "text-[#666]"
               }`}
             >
@@ -88,7 +88,7 @@ export default function TimingTower({ drivers, selectedDriver, threats }: Timing
       })}
 
       {sorted.length === 0 && (
-        <div className="px-3 py-4 text-xs text-[#555]">No driver data</div>
+        <div className="px-3 py-4 text-sm text-[#555]">No driver data</div>
       )}
     </div>
   )

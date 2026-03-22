@@ -19,14 +19,25 @@ interface Props {
   currentTyreAge?: number
 }
 
+function evalCurve(curve: DegradationCurve, age: number): number {
+  if (curve.coeffs && curve.coeffs.length > 0) {
+    // Polynomial: coeffs[0]*age^n + coeffs[1]*age^(n-1) + ... + coeffs[n]
+    let result = 0
+    for (let i = 0; i < curve.coeffs.length; i++) {
+      result = result * age + curve.coeffs[i]
+    }
+    return Math.max(0, result)
+  }
+  // Fallback to linear
+  return Math.max(0, curve.slope * age + curve.intercept)
+}
+
 function buildChartData(curves: DegradationCurve[], maxAge: number) {
   return Array.from({ length: maxAge }, (_, i) => {
     const age = i + 1
     const point: Record<string, number> = { age }
     for (const curve of curves) {
-      point[curve.compound] = parseFloat(
-        (curve.slope * age + curve.intercept).toFixed(3)
-      )
+      point[curve.compound] = parseFloat(evalCurve(curve, age).toFixed(3))
     }
     return point
   })

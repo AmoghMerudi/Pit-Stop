@@ -84,7 +84,7 @@ export default function RacePage({ params }: PageProps) {
       {/* Header bar */}
       <header className="h-12 flex items-center justify-between px-4 border-b border-[#222] shrink-0">
         <Link
-          href="/"
+          href="/analyze"
           className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors"
         >
           <span aria-hidden="true">&#8592;</span>

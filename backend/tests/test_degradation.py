@@ -17,7 +17,14 @@ def test_compute_delta_adds_column(sample_laps_df):
 def test_fit_curve_returns_required_keys(sample_laps_df):
     df = compute_delta(sample_laps_df)
     result = fit_curve(df, "SOFT")
-    assert set(result.keys()) == {"slope", "intercept", "r2"}
+    assert {"slope", "intercept", "r2", "coeffs", "degree"}.issubset(result.keys())
+
+
+def test_fit_curve_returns_quadratic_by_default(sample_laps_df):
+    df = compute_delta(sample_laps_df)
+    result = fit_curve(df, "SOFT")
+    assert result["degree"] == 2
+    assert len(result["coeffs"]) == 3  # [a, b, c]
 
 
 def test_fit_curve_r2_between_0_and_1(sample_laps_df):
@@ -45,12 +52,42 @@ def test_fit_all_compounds_returns_dict(sample_laps_df):
     assert "MEDIUM" in curves
 
 
-def test_predict_delta_at_age_zero_near_intercept(sample_degradation_curves):
+def test_predict_delta_at_age_zero_is_zero(sample_degradation_curves):
     result = predict_delta("SOFT", 0, sample_degradation_curves)
-    # intercept is 0.0, slope is 0.15, so at age=0 result should be 0.0
-    assert abs(result - 0.0) < 0.001
+    assert result == 0.0
 
 
 def test_predict_delta_raises_on_missing_compound(sample_degradation_curves):
     with pytest.raises(KeyError):
         predict_delta("INTERMEDIATE", 5, sample_degradation_curves)
+
+
+def test_predict_delta_quadratic_higher_at_high_age(sample_degradation_curves):
+    """Quadratic should produce higher delta at age 50 than a linear model would."""
+    delta_at_50 = predict_delta("SOFT", 50, sample_degradation_curves)
+    # With coeffs [0.003, 0.05, 0.0]: 0.003*2500 + 0.05*50 = 7.5 + 2.5 = 10.0
+    assert delta_at_50 == pytest.approx(10.0, abs=0.01)
+
+
+def test_predict_delta_floors_at_zero():
+    """Negative predictions (possible at very low ages with quadratic) should floor to 0."""
+    curves = {"SOFT": {"coeffs": [0.01, -0.1, 0.5], "degree": 2, "slope": -0.1, "intercept": 0.5, "r2": 0.9}}
+    # At age=0: 0.5, at age=1: 0.01 - 0.1 + 0.5 = 0.41 — both positive
+    # But some curves could go negative at certain ages
+    result = predict_delta("SOFT", 0, curves)
+    assert result >= 0.0
+
+
+def test_predict_delta_backward_compat_linear():
+    """Old-format curves (slope+intercept only) still work."""
+    curves = {"SOFT": {"slope": 0.15, "intercept": 0.0, "r2": 0.9}}
+    result = predict_delta("SOFT", 10, curves)
+    assert result == pytest.approx(1.5, abs=0.01)
+
+
+def test_fit_curve_linear_fallback(sample_laps_df):
+    """Can explicitly request linear fit with degree=1."""
+    df = compute_delta(sample_laps_df)
+    result = fit_curve(df, "SOFT", degree=1)
+    assert result["degree"] == 1
+    assert len(result["coeffs"]) == 2

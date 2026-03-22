@@ -32,14 +32,19 @@ def recommend(
     best_alt = window["best_alt"]
     optimal_lap = window["optimal_lap"]
 
+    pit_for_optimal = optimal_lap >= 1 and optimal_lap <= 1 and net_delta > 0
     pit_for_crossover = crossover_lap <= CROSSOVER_PIT_THRESHOLD
     pit_for_undercut = len(undercut_threats) > 0
 
-    recommend_pit = pit_for_crossover or pit_for_undercut
+    recommend_pit = pit_for_optimal or pit_for_crossover or pit_for_undercut
 
     threat_names = ", ".join(t["driver"] for t in undercut_threats)
 
-    if pit_for_crossover and pit_for_undercut:
+    # Reason priority: optimal > crossover+undercut > crossover > undercut > approaching > stay out
+    if pit_for_optimal:
+        alt_note = f" onto {best_alt}" if best_alt else ""
+        reason = f"Pit now{alt_note} — saves {net_delta:.1f}s over remaining laps"
+    elif pit_for_crossover and pit_for_undercut:
         reason = (
             f"Pit now — crossover in {crossover_lap} lap(s) and undercut threat "
             f"from {threat_names}"
@@ -50,10 +55,14 @@ def recommend(
         reason = f"Pit to defend against undercut from {threat_names}"
     elif crossover_lap >= 999:
         reason = "Stay out — tyre showing minimal degradation"
+    elif optimal_lap > 0 and optimal_lap <= 5:
+        reason = f"Consider pitting in {optimal_lap} lap(s) — tyres degrading"
     elif window["overcut_window"]:
         reason = f"Stay out — overcut opportunity in {crossover_lap - CROSSOVER_PIT_THRESHOLD} laps"
+    elif optimal_lap > 0:
+        reason = f"Stay out — pit window in ~{optimal_lap} laps"
     else:
-        reason = "Stay out — no pit window yet"
+        reason = "Stay out — no pit advantage within planning horizon"
 
     all_drivers = [
         {"driver": k, **v} for k, v in driver_states.items()

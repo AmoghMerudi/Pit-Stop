@@ -134,24 +134,32 @@ def calc_net_delta(
     pit_loss: float,
     curves: dict[str, dict],
     best_alt: str | None = None,
+    remaining_laps: int = 20,
 ) -> float:
     """
-    Net time delta of pitting NOW vs staying out one more lap.
+    Net time saved by pitting NOW vs staying out for all remaining laps.
 
-    Compares cost of staying out (degradation on current tyres next lap) against
-    pitting now (pit loss + first lap on best alternative compound).
+    Compares cumulative degradation cost of staying out on current tyres
+    against pitting now (pit loss + fresh alternative tyres for remaining laps).
 
-    Positive = pitting is better.  Negative = staying out is better.
+    Positive = pitting saves time.  Negative = staying out is better.
     """
-    stay_cost = predict_delta(compound, current_age + 1, curves)
+    horizon = remaining_laps
 
-    if best_alt is not None and best_alt in curves:
-        pit_now_cost = pit_loss + predict_delta(best_alt, 1, curves)
-    else:
-        # No alternative compound — compare against fresh set of same compound
-        pit_now_cost = pit_loss + predict_delta(compound, 1, curves)
+    # Cost of staying out on current tyres
+    stay_cost = sum(
+        predict_delta(compound, current_age + i, curves)
+        for i in range(1, horizon + 1)
+    )
 
-    return stay_cost - pit_now_cost
+    # Cost of pitting now: pit loss + fresh tyres for remaining laps
+    alt = best_alt if (best_alt is not None and best_alt in curves) else compound
+    pit_cost = pit_loss + sum(
+        predict_delta(alt, j, curves)
+        for j in range(1, horizon + 1)
+    )
+
+    return stay_cost - pit_cost
 
 
 def get_pit_window(
@@ -176,7 +184,7 @@ def get_pit_window(
     # Use the alt from whichever calculation found one
     resolved_alt = best_alt or opt_alt
 
-    net_delta = calc_net_delta(tyre_age, compound, pit_loss, curves, resolved_alt)
+    net_delta = calc_net_delta(tyre_age, compound, pit_loss, curves, resolved_alt, remaining_laps)
 
     undercut_window = crossover <= 3
     overcut_window = crossover > 3 and crossover <= 8

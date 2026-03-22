@@ -7,10 +7,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from benchmarks import load_baseline_curves
-from constants import COMPOUNDS, get_circuit_for_round
+from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds
-from ingestion import CURRENT_YEAR, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_stints, get_race_state, load_session
-from models import DegradationCurve, ErrorResponse, LiveStrategyResponse, ManualStrategyRequest, StrategyResponse
+from ingestion import CURRENT_YEAR, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_race_state, get_total_laps, load_session
+from models import DegradationCurve, ErrorResponse, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, StrategyResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
 
@@ -66,11 +66,13 @@ def get_strategy(year: int, round_number: int, driver: str):
         laps = get_laps(session)
         curves = fit_all_compounds(laps)
         current_lap = int(laps["lap_number"].max())
+        total_laps = get_total_laps(session)
+        remaining_laps = max(1, total_laps - current_lap)
         race_state = get_race_state(session, current_lap)
         driver_states = build_driver_states(laps, current_lap, race_state)
         circuit = session.event.get("Location") if hasattr(session, "event") else None
-        result = recommend(driver, driver_states, curves, circuit)
-        return StrategyResponse(**result)
+        result = recommend(driver, driver_states, curves, circuit, remaining_laps)
+        return StrategyResponse(**result, remaining_laps=remaining_laps)
     except ValueError as exc:
         status = 404 if "not found" in str(exc).lower() else 400
         raise HTTPException(status_code=status, detail=str(exc))
@@ -133,10 +135,12 @@ def live_manual_strategy(body: ManualStrategyRequest):
         circuit = get_circuit_for_round(body.year, body.round)
 
         # 6. Run strategy recommendation
-        result = recommend(driver, driver_states, curves, circuit)
+        remaining_laps = max(1, body.total_laps - body.current_lap) if body.current_lap > 0 else body.total_laps
+        result = recommend(driver, driver_states, curves, circuit, remaining_laps)
 
         return LiveStrategyResponse(
             **result,
+            remaining_laps=remaining_laps,
             curve_source=curve_source,
             rival_count=rival_count,
         )
@@ -152,6 +156,155 @@ def live_manual_strategy(body: ManualStrategyRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.get("/live/session", response_model=LiveSessionResponse)
+def live_session():
+    """Check if a live F1 session is active and return its metadata."""
+    info = get_live_session_info("latest")
+    if not info:
+        return LiveSessionResponse(active=False)
+
+    # Determine year and round from session info
+    year = info.get("year")
+    session_type = info.get("session_type")
+    circuit = info.get("circuit_short_name")
+    country = info.get("country_name")
+    session_key = info.get("session_key")
+
+    # Only consider Race sessions as "active" for strategy
+    is_race = session_type == "Race" if session_type else False
+
+    # Try to find round number from our mapping
+    round_number = None
+    if year:
+        for (y, r), c in ROUND_TO_CIRCUIT.items():
+            if y == year and c and circuit and c.lower() in circuit.lower():
+                round_number = r
+                break
+
+    return LiveSessionResponse(
+        active=is_race,
+        session_key=session_key,
+        session_type=session_type,
+        circuit=circuit,
+        country=country,
+        year=year,
+        round=round_number,
+    )
+
+
+@app.get("/live/grid", response_model=list[LiveDriverState])
+def live_grid():
+    """Return all drivers on the live grid with their current state."""
+    try:
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            f_stints = executor.submit(get_live_stints, "latest")
+            f_positions = executor.submit(get_live_positions, "latest")
+            f_intervals = executor.submit(get_live_intervals, "latest")
+            f_drivers = executor.submit(get_live_drivers, "latest")
+            stints = f_stints.result()
+            positions = f_positions.result()
+            intervals = f_intervals.result()
+            driver_mapping = f_drivers.result()
+
+        if not stints:
+            return []
+
+        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
+
+        grid = []
+        for drv, state in driver_states.items():
+            grid.append(LiveDriverState(
+                driver=drv,
+                compound=state["compound"],
+                tyre_age=state["tyre_age"],
+                position=state["position"],
+                gap_to_leader=state["gap_to_leader"],
+            ))
+
+        grid.sort(key=lambda d: d.position if d.position > 0 else 999)
+        return grid
+
+    except Exception as exc:
+        logger.error("Error in /live/grid: %s", exc, exc_info=True)
+        return []
+
+
+@app.get("/live/strategy/{driver}", response_model=LiveStrategyResponse)
+def live_strategy(driver: str, year: int | None = None, round: int | None = None):
+    """
+    Compute live strategy for a driver using real-time OpenF1 data.
+    Year and round can be passed as query params, or auto-detected from the live session.
+    """
+    driver = driver.upper()
+    try:
+        # Auto-detect year/round from live session if not provided
+        if year is None or round is None:
+            info = get_live_session_info("latest")
+            if not info:
+                raise HTTPException(status_code=503, detail="No active live session")
+            year = year or info.get("year", CURRENT_YEAR)
+            if round is None:
+                circuit = info.get("circuit_short_name", "")
+                for (y, r), c in ROUND_TO_CIRCUIT.items():
+                    if y == year and c and circuit and c.lower() in circuit.lower():
+                        round = r
+                        break
+                if round is None:
+                    round = 1  # fallback
+
+        # 1. Load degradation baseline
+        curves, curve_source = load_baseline_curves(year, round)
+
+        # 2. Fetch live rival data in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            f_stints = executor.submit(get_live_stints, "latest")
+            f_positions = executor.submit(get_live_positions, "latest")
+            f_intervals = executor.submit(get_live_intervals, "latest")
+            f_drivers = executor.submit(get_live_drivers, "latest")
+            stints = f_stints.result()
+            positions = f_positions.result()
+            intervals = f_intervals.result()
+            driver_mapping = f_drivers.result()
+
+        if not stints:
+            raise HTTPException(status_code=503, detail="Live timing unavailable — no stint data")
+
+        # 3. Build driver states
+        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
+        rival_count = len(driver_states)
+
+        if driver not in driver_states:
+            raise HTTPException(status_code=404, detail=f"Driver {driver} not found in live data")
+
+        # 4. Circuit + remaining laps
+        circuit_name = get_circuit_for_round(year, round)
+
+        # Estimate remaining laps from stint data
+        max_lap = 0
+        for stint in stints:
+            lap_end = stint.get("lap_end")
+            if lap_end and int(lap_end) > max_lap:
+                max_lap = int(lap_end)
+        total_laps = 57  # default
+        remaining_laps = max(1, total_laps - max_lap) if max_lap > 0 else total_laps
+
+        # 5. Strategy recommendation
+        result = recommend(driver, driver_states, curves, circuit_name, remaining_laps)
+
+        return LiveStrategyResponse(
+            **result,
+            remaining_laps=remaining_laps,
+            curve_source=curve_source,
+            rival_count=rival_count,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Error in /live/strategy/%s: %s", driver, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @app.get("/live/laps", response_model=list[dict])
 def live_laps():
     return get_live_laps()
@@ -160,37 +313,3 @@ def live_laps():
 @app.get("/live/stints", response_model=list[dict])
 def live_stints():
     return get_live_stints()
-
-
-@app.get("/live/strategy/{driver}", response_model=StrategyResponse)
-def live_strategy(driver: str):
-    driver = driver.upper()
-    try:
-        stints = get_live_stints()
-        laps = get_live_laps()
-
-        if not stints or not laps:
-            raise HTTPException(status_code=503, detail="Live timing unavailable")
-
-        # Build minimal driver states from live OpenF1 data
-        driver_states: dict[str, dict] = {}
-        for stint in stints:
-            drv_num = str(stint.get("driver_number"))
-            driver_states[drv_num] = {
-                "compound": stint.get("compound", "UNKNOWN"),
-                "tyre_age": stint.get("tyre_age_at_start", 0) + (stint.get("lap_end") or 0) - (stint.get("lap_start") or 0),
-                "position": 0,
-                "gap_to_leader": 0.0,
-            }
-
-        if driver not in driver_states:
-            raise HTTPException(status_code=404, detail=f"Driver {driver} not found in live data")
-
-        # Curves unavailable in live mode without a historical session baseline
-        raise HTTPException(status_code=503, detail="Live strategy requires a baseline session — not yet implemented")
-
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Error in /live/strategy/%s: %s", driver, exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")

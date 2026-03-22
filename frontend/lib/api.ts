@@ -21,6 +21,8 @@ export interface DegradationCurve {
   slope: number
   intercept: number
   r2: number
+  coeffs?: number[]
+  degree?: number
 }
 
 export interface ThreatDetail {
@@ -51,6 +53,7 @@ export interface StrategyResponse {
   pit_loss: number
   circuit: string | null
   best_alt: string | null
+  remaining_laps: number
 }
 
 export interface LiveLap {
@@ -90,8 +93,22 @@ export function getLiveStints(): Promise<LiveStint[]> {
   return apiFetch("/live/stints")
 }
 
-export function getLiveStrategy(driver: string): Promise<StrategyResponse> {
-  return apiFetch(`/live/strategy/${driver}`)
+export interface LiveSessionInfo {
+  active: boolean
+  session_key: number | null
+  session_type: string | null
+  circuit: string | null
+  country: string | null
+  year: number | null
+  round: number | null
+}
+
+export interface LiveDriverState {
+  driver: string
+  compound: string
+  tyre_age: number
+  position: number
+  gap_to_leader: number
 }
 
 export interface LiveStrategyResponse extends StrategyResponse {
@@ -99,25 +116,14 @@ export interface LiveStrategyResponse extends StrategyResponse {
   rival_count: number
 }
 
-export interface ManualStrategyRequest {
-  year: number
-  round: number
-  driver: string
-  compound: string
-  tyre_age: number
+export function getLiveSession(): Promise<LiveSessionInfo> {
+  return apiFetch("/live/session")
 }
 
-export async function postLiveManualStrategy(
-  body: ManualStrategyRequest
-): Promise<LiveStrategyResponse> {
-  const res = await fetch(`${BASE_URL}/live/manual-strategy`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ error: "Unknown error" }))
-    throw new Error(`API error ${res.status}: ${errBody.error}`)
-  }
-  return res.json()
+export function getLiveGrid(): Promise<LiveDriverState[]> {
+  return apiFetch("/live/grid")
+}
+
+export function getLiveStrategy(driver: string): Promise<LiveStrategyResponse> {
+  return apiFetch(`/live/strategy/${driver}`)
 }

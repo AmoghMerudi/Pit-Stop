@@ -1,19 +1,16 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import LiveSessionBadge from "@/components/LiveSessionBadge"
 import MetricTile from "@/components/MetricTile"
 import PitCountdown from "@/components/PitCountdown"
 import CircuitInfo from "@/components/CircuitInfo"
-import { postLiveManualStrategy } from "@/lib/api"
-import type { LiveStrategyResponse, DegradationCurve } from "@/lib/api"
-import { COMPOUNDS, COMPOUND_ACTIVE, type Compound } from "@/lib/constants"
+import { getLiveSession, getLiveGrid, getLiveStrategy } from "@/lib/api"
+import type { LiveSessionInfo, LiveDriverState, LiveStrategyResponse, DegradationCurve } from "@/lib/api"
+import { COMPOUND_COLOURS } from "@/lib/constants"
 
-const INPUT_CLASS =
-  "w-full bg-[#0a0a0a] border border-[#222] px-3 py-2 text-white text-sm font-mono " +
-  "focus:outline-none focus:border-[#e8002d] transition-colors " +
-  "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+const POLL_INTERVAL = 15_000 // 15 seconds
 
 function netDeltaDisplay(delta: number): { value: string; status: "green" | "red" | "neutral" } {
   const sign = delta >= 0 ? "+" : ""
@@ -24,171 +21,179 @@ function netDeltaDisplay(delta: number): { value: string; status: "green" | "red
 }
 
 export default function LivePage() {
-  const currentYear = new Date().getFullYear()
-
-  const [year, setYear] = useState<number>(currentYear)
-  const [round, setRound] = useState<number>(1)
-  const [driver, setDriver] = useState<string>("")
-  const [compound, setCompound] = useState<Compound>("MEDIUM")
-  const [tyreAge, setTyreAge] = useState<number>(0)
-
+  const [session, setSession] = useState<LiveSessionInfo | null>(null)
+  const [grid, setGrid] = useState<LiveDriverState[]>([])
+  const [selectedDriver, setSelectedDriver] = useState<string | null>(null)
   const [result, setResult] = useState<LiveStrategyResponse | null>(null)
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [initialLoading, setInitialLoading] = useState(true)
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setResult(null)
+  // Poll session + grid
+  const refresh = useCallback(async () => {
     try {
-      const data = await postLiveManualStrategy({
-        year,
-        round,
-        driver: driver.trim().toUpperCase(),
-        compound,
-        tyre_age: tyreAge,
-      })
-      setResult(data)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unexpected error")
+      const [sess, drivers] = await Promise.all([getLiveSession(), getLiveGrid()])
+      setSession(sess)
+      setGrid(drivers)
+    } catch {
+      setSession(null)
+      setGrid([])
     } finally {
-      setLoading(false)
+      setInitialLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+    const interval = setInterval(refresh, POLL_INTERVAL)
+    return () => clearInterval(interval)
+  }, [refresh])
+
+  // Auto-refresh strategy for selected driver
+  useEffect(() => {
+    if (!selectedDriver || !session?.active) return
+
+    let mounted = true
+
+    async function fetchStrategy() {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await getLiveStrategy(selectedDriver!)
+        if (mounted) setResult(data)
+      } catch (err: unknown) {
+        if (mounted) setError(err instanceof Error ? err.message : "Unexpected error")
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    fetchStrategy()
+    const interval = setInterval(fetchStrategy, POLL_INTERVAL)
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [selectedDriver, session?.active])
 
   const nd = result ? netDeltaDisplay(result.net_delta) : null
-
-  // Build a minimal DegradationCurve array from the curve_source for CircuitInfo
-  // (we don't have actual curves in live mode, but we show what we know)
   const fakeCurves: DegradationCurve[] = []
+
+  // Loading state
+  if (initialLoading) {
+    return (
+      <div className="h-screen flex flex-col bg-[#0a0a0a]">
+        <header className="h-12 flex items-center justify-between px-4 border-b border-[#222] shrink-0">
+          <Link href="/" className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors">
+            <span aria-hidden="true">&#8592;</span> Back
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-[#e8002d] font-bold text-sm" aria-hidden="true">&#9646;</span>
+            <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
+            <span className="text-[#555] text-xs font-mono ml-2">LIVE</span>
+          </div>
+          <div />
+        </header>
+        <div className="flex-1 flex items-center justify-center text-[#555] text-xs">
+          Checking for active session...
+        </div>
+      </div>
+    )
+  }
+
+  // No active race session
+  if (!session?.active) {
+    return (
+      <div className="h-screen flex flex-col bg-[#0a0a0a]">
+        <header className="h-12 flex items-center justify-between px-4 border-b border-[#222] shrink-0">
+          <Link href="/" className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors">
+            <span aria-hidden="true">&#8592;</span> Back
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-[#e8002d] font-bold text-sm" aria-hidden="true">&#9646;</span>
+            <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
+            <span className="text-[#555] text-xs font-mono ml-2">LIVE</span>
+          </div>
+          <LiveSessionBadge />
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="w-3 h-3 rounded-full bg-[#333]" />
+          <p className="text-[#555] text-sm">No active race session</p>
+          <p className="text-[#333] text-xs max-w-xs text-center">
+            Live analysis is available during F1 race sessions. Check back when a race is underway.
+          </p>
+          <Link
+            href="/"
+            className="mt-4 text-[#e8002d] hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
+          >
+            Analyze a past race instead
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
-      {/* Header bar */}
+      {/* Header */}
       <header className="h-12 flex items-center justify-between px-4 border-b border-[#222] shrink-0">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors"
-        >
-          <span aria-hidden="true">&#8592;</span>
-          Back
+        <Link href="/" className="flex items-center gap-2 text-[#555] hover:text-white text-xs transition-colors">
+          <span aria-hidden="true">&#8592;</span> Back
         </Link>
-
         <div className="flex items-center gap-2">
           <span className="text-[#e8002d] font-bold text-sm" aria-hidden="true">&#9646;</span>
           <span className="text-white font-semibold text-sm tracking-tight">PIT STOP</span>
           <span className="text-[#555] text-xs font-mono ml-2">LIVE</span>
         </div>
-
         <LiveSessionBadge />
       </header>
 
-      {/* Compact input form bar */}
-      <form onSubmit={handleSubmit} className="border-b border-[#222] px-4 py-3 shrink-0">
-        <div className="flex flex-wrap items-end gap-3">
-          {/* Year */}
-          <div className="w-20">
-            <label htmlFor="year" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
-              Year
-            </label>
-            <input
-              id="year"
-              type="number"
-              min={2018}
-              max={currentYear}
-              value={year}
-              onChange={(e) => setYear(parseInt(e.target.value, 10))}
-              required
-              className={INPUT_CLASS}
-            />
-          </div>
+      {/* Session info bar */}
+      <div className="px-4 py-2 border-b border-[#222] flex items-center gap-4 shrink-0">
+        <span className="text-white text-sm font-semibold">{session.circuit}</span>
+        {session.country && <span className="text-[#555] text-xs">{session.country}</span>}
+        {session.year && session.round && (
+          <span className="text-[#555] text-xs font-mono">
+            {session.year} R{session.round}
+          </span>
+        )}
+        <span className="ml-auto text-[#333] text-[10px] font-mono">
+          Auto-refresh {POLL_INTERVAL / 1000}s
+        </span>
+      </div>
 
-          {/* Round */}
-          <div className="w-16">
-            <label htmlFor="round" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
-              Round
-            </label>
-            <input
-              id="round"
-              type="number"
-              min={1}
-              max={24}
-              value={round}
-              onChange={(e) => setRound(parseInt(e.target.value, 10))}
-              required
-              className={INPUT_CLASS}
-            />
-          </div>
-
-          {/* Driver */}
-          <div className="w-20">
-            <label htmlFor="driver" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
-              Driver
-            </label>
-            <input
-              id="driver"
-              type="text"
-              maxLength={3}
-              value={driver}
-              onChange={(e) => setDriver(e.target.value.toUpperCase())}
-              placeholder="VER"
-              required
-              className={`${INPUT_CLASS} uppercase placeholder:normal-case placeholder:text-[#333]`}
-            />
-          </div>
-
-          {/* Compound pills */}
-          <div>
-            <span className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
-              Compound
-            </span>
-            <div className="flex gap-1">
-              {COMPOUNDS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCompound(c)}
-                  className={`px-2 py-1.5 text-[10px] font-bold border transition-colors ${
-                    compound === c
-                      ? COMPOUND_ACTIVE[c]
-                      : "border-[#333] text-[#555] hover:border-[#555] hover:text-[#888]"
-                  }`}
-                >
-                  {c === "INTERMEDIATE" ? "INT" : c}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Tyre age */}
-          <div className="w-16">
-            <label htmlFor="tyre-age" className="block text-[10px] font-medium text-[#555] uppercase tracking-widest mb-1">
-              Age
-            </label>
-            <input
-              id="tyre-age"
-              type="number"
-              min={0}
-              max={60}
-              value={tyreAge}
-              onChange={(e) => setTyreAge(parseInt(e.target.value, 10))}
-              required
-              className={INPUT_CLASS}
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-[#e8002d] hover:bg-[#c0001f] disabled:opacity-50 disabled:cursor-not-allowed
-                       text-white font-bold px-5 py-2 transition-colors text-xs uppercase tracking-widest"
-          >
-            {loading ? "..." : "GO"}
-          </button>
+      {/* Driver grid */}
+      <div className="border-b border-[#222] px-4 py-3 shrink-0">
+        <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-2">
+          Select Driver
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {grid.map((d) => (
+            <button
+              key={d.driver}
+              onClick={() => {
+                setSelectedDriver(d.driver)
+                setResult(null)
+                setError(null)
+              }}
+              className={`px-2.5 py-1.5 text-xs font-mono font-bold border transition-colors ${
+                selectedDriver === d.driver
+                  ? "border-[#e8002d] text-[#e8002d] bg-[#e8002d]/10"
+                  : "border-[#333] text-[#888] hover:border-[#555] hover:text-white"
+              }`}
+            >
+              <span className="mr-1.5 text-[#555] font-normal">P{d.position || "?"}</span>
+              {d.driver}
+              <span className={`ml-1.5 text-[10px] ${COMPOUND_COLOURS[d.compound] ?? "text-[#555]"}`}>
+                {d.compound?.charAt(0)}
+              </span>
+            </button>
+          ))}
+          {grid.length === 0 && (
+            <span className="text-[#555] text-xs">Waiting for driver data...</span>
+          )}
         </div>
-      </form>
+      </div>
 
       {/* Error */}
       {error && (
@@ -198,8 +203,15 @@ export default function LivePage() {
         </div>
       )}
 
+      {/* Loading */}
+      {loading && !result && (
+        <div className="flex-1 flex items-center justify-center text-[#555] text-xs">
+          Loading strategy for {selectedDriver}...
+        </div>
+      )}
+
       {/* Results */}
-      {result && !loading && (
+      {result && (
         <div className="flex-1 overflow-y-auto">
           {/* Metric tiles */}
           <div className="grid grid-cols-4 border-b border-[#222]">
@@ -261,10 +273,10 @@ export default function LivePage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!result && !loading && !error && (
+      {/* Empty state — no driver selected */}
+      {!selectedDriver && !loading && !error && (
         <div className="flex-1 flex items-center justify-center text-[#333] text-xs">
-          Enter race details above and press GO
+          Select a driver from the grid above
         </div>
       )}
     </div>

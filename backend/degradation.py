@@ -8,6 +8,7 @@ from constants import COMPOUNDS
 logger = logging.getLogger(__name__)
 
 MIN_LAPS_FOR_FIT = 5
+FIT_DEGREE = 2  # quadratic — captures accelerating degradation (tyre cliff)
 
 
 def compute_delta(laps_df: pd.DataFrame) -> pd.DataFrame:
@@ -21,10 +22,15 @@ def compute_delta(laps_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def fit_curve(laps_df: pd.DataFrame, compound: str) -> dict:
+def fit_curve(laps_df: pd.DataFrame, compound: str, degree: int = FIT_DEGREE) -> dict:
     """
-    Fit a linear degradation curve for one compound.
-    Returns { slope, intercept, r2 }.
+    Fit a polynomial degradation curve for one compound.
+
+    Returns { coeffs, degree, slope, intercept, r2 }.
+    - coeffs: polynomial coefficients [a, b, c] for degree=2 (highest power first)
+    - slope/intercept: kept for backward compatibility (linear terms from the fit)
+    - r2: coefficient of determination
+
     Raises ValueError if compound is unknown or has fewer than MIN_LAPS_FOR_FIT rows.
     """
     if compound not in COMPOUNDS:
@@ -39,10 +45,10 @@ def fit_curve(laps_df: pd.DataFrame, compound: str) -> dict:
     x = subset["tyre_age"].to_numpy(dtype=float)
     y = subset["lap_time_delta"].to_numpy(dtype=float)
 
-    coeffs = np.polyfit(x, y, 1)
-    slope, intercept = float(coeffs[0]), float(coeffs[1])
+    coeffs = np.polyfit(x, y, degree)
 
-    y_pred = slope * x + intercept
+    # R² calculation
+    y_pred = np.polyval(coeffs, x)
     ss_res = float(np.sum((y - y_pred) ** 2))
     ss_tot = float(np.sum((y - y.mean()) ** 2))
     r2 = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
@@ -50,7 +56,19 @@ def fit_curve(laps_df: pd.DataFrame, compound: str) -> dict:
     if r2 < 0.5:
         logger.warning("Low R² for %s: %.2f", compound, r2)
 
-    return {"slope": slope, "intercept": intercept, "r2": r2}
+    # Extract linear terms for backward compatibility
+    # For degree=2: coeffs = [a, b, c] → slope=b, intercept=c
+    # For degree=1: coeffs = [slope, intercept]
+    slope = float(coeffs[-2]) if len(coeffs) >= 2 else 0.0
+    intercept = float(coeffs[-1]) if len(coeffs) >= 1 else 0.0
+
+    return {
+        "coeffs": [float(c) for c in coeffs],
+        "degree": degree,
+        "slope": slope,
+        "intercept": intercept,
+        "r2": r2,
+    }
 
 
 def fit_all_compounds(laps_df: pd.DataFrame) -> dict[str, dict]:
@@ -74,9 +92,17 @@ def fit_all_compounds(laps_df: pd.DataFrame) -> dict[str, dict]:
 def predict_delta(compound: str, age: int, curves: dict[str, dict]) -> float:
     """
     Predict the lap time delta at a given tyre age using a pre-fitted curve.
+    Uses polynomial coefficients when available, falls back to slope*age+intercept.
+    Floors at 0.0 — a tyre cannot be faster than baseline.
     Raises KeyError if the compound has no curve.
     """
     if compound not in curves:
         raise KeyError(f"No degradation curve available for {compound}")
     c = curves[compound]
-    return c["slope"] * age + c["intercept"]
+
+    if "coeffs" in c:
+        value = float(np.polyval(c["coeffs"], age))
+    else:
+        value = c["slope"] * age + c["intercept"]
+
+    return max(0.0, value)

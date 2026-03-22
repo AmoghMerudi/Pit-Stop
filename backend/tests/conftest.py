@@ -19,11 +19,11 @@ def sample_laps_df():
 
 @pytest.fixture
 def sample_degradation_curves():
-    """Pre-built curve dict matching the output of fit_all_compounds."""
+    """Pre-built curve dict matching the output of fit_all_compounds (quadratic)."""
     return {
-        "SOFT":   {"slope": 0.15, "intercept": 0.0, "r2": 0.92},
-        "MEDIUM": {"slope": 0.08, "intercept": 0.0, "r2": 0.88},
-        "HARD":   {"slope": 0.04, "intercept": 0.0, "r2": 0.85},
+        "SOFT":   {"coeffs": [0.003, 0.05, 0.0], "degree": 2, "slope": 0.05, "intercept": 0.0, "r2": 0.92},
+        "MEDIUM": {"coeffs": [0.0015, 0.03, 0.0], "degree": 2, "slope": 0.03, "intercept": 0.0, "r2": 0.88},
+        "HARD":   {"coeffs": [0.0008, 0.015, 0.0], "degree": 2, "slope": 0.015, "intercept": 0.0, "r2": 0.85},
     }
 
 

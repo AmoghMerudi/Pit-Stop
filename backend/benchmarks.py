@@ -20,12 +20,16 @@ BASELINE_LOAD_TIMEOUT = 30  # seconds
 # Realistic F1 degradation benchmarks derived from multi-year data.
 # slope = seconds of additional lap time per lap of tyre age.
 # r2 = 0.0 is a sentinel meaning "benchmark data, not fitted from real laps".
+# Quadratic benchmarks: coeffs = [a, b, c] where delta = a*age² + b*age + c
+# The quadratic term (a) models accelerating degradation (tyre cliff).
+# Example: SOFT at age 30 = 0.003*900 + 0.05*30 = 2.7 + 1.5 = 4.2s
+#          SOFT at age 50 = 0.003*2500 + 0.05*50 = 7.5 + 2.5 = 10.0s (cliff)
 BENCHMARK_CURVES: dict[str, dict] = {
-    "SOFT":         {"slope": 0.100, "intercept": 0.0, "r2": 0.0},
-    "MEDIUM":       {"slope": 0.055, "intercept": 0.0, "r2": 0.0},
-    "HARD":         {"slope": 0.030, "intercept": 0.0, "r2": 0.0},
-    "INTERMEDIATE": {"slope": 0.080, "intercept": 0.0, "r2": 0.0},
-    "WET":          {"slope": 0.045, "intercept": 0.0, "r2": 0.0},
+    "SOFT":         {"coeffs": [0.003, 0.05, 0.0], "degree": 2, "slope": 0.05, "intercept": 0.0, "r2": 0.0},
+    "MEDIUM":       {"coeffs": [0.0015, 0.03, 0.0], "degree": 2, "slope": 0.03, "intercept": 0.0, "r2": 0.0},
+    "HARD":         {"coeffs": [0.0008, 0.015, 0.0], "degree": 2, "slope": 0.015, "intercept": 0.0, "r2": 0.0},
+    "INTERMEDIATE": {"coeffs": [0.002, 0.04, 0.0], "degree": 2, "slope": 0.04, "intercept": 0.0, "r2": 0.0},
+    "WET":          {"coeffs": [0.001, 0.025, 0.0], "degree": 2, "slope": 0.025, "intercept": 0.0, "r2": 0.0},
 }
 
 

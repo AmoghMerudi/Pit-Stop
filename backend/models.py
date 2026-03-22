@@ -10,6 +10,8 @@ class DegradationCurve(BaseModel):
     slope: float
     intercept: float
     r2: float
+    coeffs: list[float] | None = None
+    degree: int = 1
 
 
 class PitWindowResult(BaseModel):
@@ -47,6 +49,7 @@ class StrategyResponse(BaseModel):
     pit_loss: float
     circuit: str | None
     best_alt: str | None = None
+    remaining_laps: int = 20
 
 
 class ManualStrategyRequest(BaseModel):
@@ -55,6 +58,26 @@ class ManualStrategyRequest(BaseModel):
     driver: str      # route handler uppercases and strips
     compound: str    # validated against COMPOUNDS in handler
     tyre_age: int    # >= 0, validated in handler
+    current_lap: int = 0      # current lap in race (0 = unknown)
+    total_laps: int = 57      # total race laps (default typical F1 race)
+
+
+class LiveSessionResponse(BaseModel):
+    active: bool
+    session_key: int | None = None
+    session_type: str | None = None  # "Race", "Qualifying", etc.
+    circuit: str | None = None
+    country: str | None = None
+    year: int | None = None
+    round: int | None = None
+
+
+class LiveDriverState(BaseModel):
+    driver: str
+    compound: str
+    tyre_age: int
+    position: int
+    gap_to_leader: float
 
 
 class LiveStrategyResponse(BaseModel):
@@ -69,5 +92,6 @@ class LiveStrategyResponse(BaseModel):
     pit_loss: float
     circuit: str | None
     best_alt: str | None = None
+    remaining_laps: int = 20
     curve_source: str   # "prior_race:2026/3" or "benchmark"
     rival_count: int    # number of rivals found in live OpenF1 data

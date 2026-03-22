@@ -35,29 +35,81 @@ def load_session(year: int, round_number: int) -> fastf1.core.Session:
     return session
 
 
+def get_total_laps(session: fastf1.core.Session) -> int:
+    """Extract total race laps from session. Falls back to max observed lap number."""
+    # FastF1 stores total laps in session.total_laps for race sessions
+    if hasattr(session, "total_laps") and session.total_laps:
+        return int(session.total_laps)
+    # Fallback: max lap number observed in data
+    return int(session.laps["LapNumber"].max())
+
+
+# TrackStatus codes that indicate abnormal racing conditions
+# "4" = Safety Car, "6" = VSC, "7" = VSC Ending
+SC_STATUS_CODES = {"4", "6", "7"}
+
+
 def get_laps(session: fastf1.core.Session) -> pd.DataFrame:
     """
     Extract clean lap data from a session.
 
     Returns a DataFrame matching the ingestion output contract:
     driver, compound, tyre_age, lap_time (float seconds), stint, lap_number.
-    All nulls removed. Compound always in COMPOUNDS set.
+
+    Filters applied:
+    - Removes quicklap outliers (FastF1 pick_quicklaps)
+    - Removes laps with null/zero lap times
+    - Removes unknown compounds
+    - Removes safety car / VSC laps (TrackStatus 4, 6, 7)
+    - Removes pit in-laps and out-laps
     """
     laps = session.laps.pick_quicklaps().copy()
 
     laps["lap_time"] = laps["LapTime"].dt.total_seconds()
 
-    df = laps.rename(columns={
+    # Extract track status and pit flags for filtering
+    rename_map = {
         "Driver":     "driver",
         "Compound":   "compound",
         "TyreLife":   "tyre_age",
         "Stint":      "stint",
         "LapNumber":  "lap_number",
-    })[["driver", "compound", "tyre_age", "lap_time", "stint", "lap_number"]]
+    }
+    columns = ["driver", "compound", "tyre_age", "lap_time", "stint", "lap_number"]
 
+    # Include TrackStatus if available
+    if "TrackStatus" in laps.columns:
+        rename_map["TrackStatus"] = "track_status"
+        columns.append("track_status")
+
+    # Include pit flags if available
+    if "PitInTime" in laps.columns:
+        rename_map["PitInTime"] = "pit_in_time"
+        columns.append("pit_in_time")
+    if "PitOutTime" in laps.columns:
+        rename_map["PitOutTime"] = "pit_out_time"
+        columns.append("pit_out_time")
+
+    df = laps.rename(columns=rename_map)[columns]
+
+    # Core filters
     df = df.dropna(subset=["lap_time"])
     df = df[df["compound"].isin(COMPOUNDS)]
     df = df[df["lap_time"] > 0]
+
+    # Filter safety car / VSC laps (these pollute degradation curves)
+    if "track_status" in df.columns:
+        df = df[~df["track_status"].astype(str).isin(SC_STATUS_CODES)]
+        df = df.drop(columns=["track_status"])
+
+    # Filter pit in-laps and out-laps (anomalous lap times)
+    if "pit_in_time" in df.columns:
+        df = df[df["pit_in_time"].isna()]
+        df = df.drop(columns=["pit_in_time"])
+    if "pit_out_time" in df.columns:
+        df = df[df["pit_out_time"].isna()]
+        df = df.drop(columns=["pit_out_time"])
+
     df = df.reset_index(drop=True)
 
     return df
@@ -96,6 +148,30 @@ def get_race_state(session: fastf1.core.Session, target_lap: int | None = None) 
         "gap_to_leader": [round(float(cum[d] - leader_time), 3) for d in cum.index],
     })
     return result
+
+
+def get_live_session_info(session_key: int | str = "latest") -> dict | None:
+    """
+    Fetch current session metadata from OpenF1.
+    Returns dict with year, circuit_short_name, session_type, session_key, etc.
+    Returns None if no session is active or on error.
+    """
+    try:
+        resp = requests.get(
+            f"{OPENF1_BASE_URL}/sessions",
+            params={"session_key": session_key},
+            timeout=OPENF1_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data:
+            return None
+        # OpenF1 returns a list; take the last entry
+        session = data[-1]
+        return session
+    except Exception as exc:
+        logger.warning("OpenF1 session request failed: %s", exc)
+        return None
 
 
 def get_live_drivers(session_key: int | str | None = None) -> dict[int, str]:
