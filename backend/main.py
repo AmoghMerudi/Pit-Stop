@@ -59,20 +59,23 @@ def get_degradation(year: int, round_number: int):
 
 
 @app.get("/race/{year}/{round_number}/strategy/{driver}", response_model=StrategyResponse)
-def get_strategy(year: int, round_number: int, driver: str):
+def get_strategy(year: int, round_number: int, driver: str, lap: int | None = None):
     driver = driver.upper()
     try:
         session = load_session(year, round_number)
         laps = get_laps(session)
         curves = fit_all_compounds(laps)
-        current_lap = int(laps["lap_number"].max())
+        max_lap = int(laps["lap_number"].max())
         total_laps = get_total_laps(session)
+        current_lap = min(lap, max_lap) if lap is not None else max_lap
         remaining_laps = max(1, total_laps - current_lap)
+        # Only use laps up to the requested lap for driver states
+        laps_at_lap = laps[laps["lap_number"] <= current_lap]
         race_state = get_race_state(session, current_lap)
-        driver_states = build_driver_states(laps, current_lap, race_state)
+        driver_states = build_driver_states(laps_at_lap, current_lap, race_state)
         circuit = session.event.get("Location") if hasattr(session, "event") else None
         result = recommend(driver, driver_states, curves, circuit, remaining_laps)
-        return StrategyResponse(**result, remaining_laps=remaining_laps)
+        return StrategyResponse(**result, remaining_laps=remaining_laps, total_laps=total_laps, current_lap=current_lap)
     except ValueError as exc:
         status = 404 if "not found" in str(exc).lower() else 400
         raise HTTPException(status_code=status, detail=str(exc))

@@ -50,6 +50,8 @@ class StrategyResponse(BaseModel):
     circuit: str | None
     best_alt: str | None = None
     remaining_laps: int = 20
+    total_laps: int | None = None
+    current_lap: int | None = None
 
 
 class ManualStrategyRequest(BaseModel):

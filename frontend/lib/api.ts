@@ -54,6 +54,8 @@ export interface StrategyResponse {
   circuit: string | null
   best_alt: string | null
   remaining_laps: number
+  total_laps: number | null
+  current_lap: number | null
 }
 
 export interface LiveLap {
@@ -81,8 +83,9 @@ export function getDegradation(year: number, round: number): Promise<Degradation
   return apiFetch(`/race/${year}/${round}/degradation`)
 }
 
-export function getStrategy(year: number, round: number, driver: string): Promise<StrategyResponse> {
-  return apiFetch(`/race/${year}/${round}/strategy/${driver}`)
+export function getStrategy(year: number, round: number, driver: string, lap?: number): Promise<StrategyResponse> {
+  const query = lap !== undefined ? `?lap=${lap}` : ""
+  return apiFetch(`/race/${year}/${round}/strategy/${driver}${query}`)
 }
 
 export function getLiveLaps(): Promise<LiveLap[]> {

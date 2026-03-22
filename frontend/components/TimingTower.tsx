@@ -5,6 +5,7 @@ interface TimingTowerProps {
   drivers: DriverStateResponse[]
   selectedDriver: string
   threats: string[]
+  onSelectDriver?: (driver: string) => void
 }
 
 function formatGap(gap: number, position: number): string {
@@ -13,7 +14,7 @@ function formatGap(gap: number, position: number): string {
   return `${sign}${gap.toFixed(1)}`
 }
 
-export default function TimingTower({ drivers, selectedDriver, threats }: TimingTowerProps) {
+export default function TimingTower({ drivers, selectedDriver, threats, onSelectDriver }: TimingTowerProps) {
   const sorted = [...drivers]
     .filter((d) => d.position > 0)
     .sort((a, b) => a.position - b.position)
@@ -45,9 +46,11 @@ export default function TimingTower({ drivers, selectedDriver, threats }: Timing
         return (
           <div
             key={d.driver}
+            onClick={() => onSelectDriver?.(d.driver)}
             className={`
               grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1 items-center
               border-b border-[#1a1a1a]
+              ${onSelectDriver ? "cursor-pointer hover:bg-[#1a1a1a]" : ""}
               ${isThreat ? "border-l-2 border-l-[#e8002d]" : "border-l-2 border-l-transparent"}
               ${isSelected ? "bg-[#e8002d]/8" : ""}
             `}
