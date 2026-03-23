@@ -24,9 +24,12 @@ export default function WhatIfSimulator({
 }: WhatIfSimulatorProps) {
   const [expanded, setExpanded] = useState(false)
   const [pitLap, setPitLap] = useState(currentLap)
-  const [compound, setCompound] = useState(
-    currentCompound === "SOFT" ? "MEDIUM" : currentCompound === "HARD" ? "MEDIUM" : "HARD"
-  )
+  const [compound, setCompound] = useState(() => {
+    if (currentCompound === "INTERMEDIATE" || currentCompound === "WET") return currentCompound
+    if (currentCompound === "SOFT") return "MEDIUM"
+    if (currentCompound === "HARD") return "MEDIUM"
+    return "HARD"
+  })
   const [result, setResult] = useState<WhatIfResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -87,7 +90,7 @@ export default function WhatIfSimulator({
                 Switch to
               </label>
               <div className="flex gap-1">
-                {COMPOUNDS.filter((c) => c !== "INTERMEDIATE" && c !== "WET").map((c) => (
+                {COMPOUNDS.map((c) => (
                   <button
                     key={c}
                     onClick={() => {

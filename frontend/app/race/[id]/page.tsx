@@ -508,7 +508,7 @@ export default function RacePage({ params }: PageProps) {
 
             {/* Tyre strategy timeline */}
             {stints.length > 0 && (
-              <TyreTimeline stints={stints} totalLaps={totalLaps} onSelectDriver={handleDriverSelect} highlightDriver={activeDriver} driverInfo={driverInfo} />
+              <TyreTimeline stints={stints} totalLaps={totalLaps} currentLap={selectedLap ?? undefined} onSelectDriver={handleDriverSelect} highlightDriver={activeDriver} driverInfo={driverInfo} />
             )}
 
             {/* Pit stop performance */}

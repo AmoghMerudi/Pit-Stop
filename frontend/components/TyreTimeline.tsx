@@ -7,12 +7,13 @@ import ChartFullScreen from "./ChartFullScreen"
 interface TyreTimelineProps {
   stints: StintInfo[]
   totalLaps: number
+  currentLap?: number
   onSelectDriver?: (driver: string) => void
   highlightDriver?: string
   driverInfo?: DriverInfo[]
 }
 
-export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highlightDriver, driverInfo }: TyreTimelineProps) {
+export default function TyreTimeline({ stints, totalLaps, currentLap, onSelectDriver, highlightDriver, driverInfo }: TyreTimelineProps) {
   if (stints.length === 0) return null
 
   // Group stints by driver
@@ -62,7 +63,7 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
               >
                 {driver}
               </span>
-              <div className="flex-1 flex h-5 bg-[var(--surface-raised)] rounded-sm overflow-hidden">
+              <div className="flex-1 flex h-5 bg-[var(--surface-raised)] rounded-sm overflow-hidden relative">
                 {driverStintList.map((stint) => {
                   const width = ((stint.lap_end - stint.lap_start + 1) / totalLaps) * 100
                   const left = ((stint.lap_start - 1) / totalLaps) * 100
@@ -87,6 +88,12 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
                     </div>
                   )
                 })}
+                {currentLap != null && totalLaps > 0 && (
+                  <div
+                    className="absolute top-0 bottom-0 w-px pointer-events-none z-10"
+                    style={{ left: `${(currentLap / totalLaps) * 100}%`, backgroundColor: "#e8002d", opacity: 0.8 }}
+                  />
+                )}
               </div>
             </div>
           )

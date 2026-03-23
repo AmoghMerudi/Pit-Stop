@@ -112,48 +112,50 @@ export default function LandingPage() {
         {/* ──── CENTER PANEL: Hero + CTAs ──── */}
         <div className="col-span-1 bg-[#0a0a0a] flex flex-col items-center justify-center p-8">
           <div className="flex flex-col items-center">
-            <div className="flex items-center gap-5 mb-4">
-              <span className="text-[#e8002d] text-7xl font-bold red-glow leading-none" aria-hidden="true">&#9646;</span>
+            <div className="flex items-center gap-5 mb-5 md:mb-6">
+              <span className="text-[#e8002d] text-8xl font-bold red-glow leading-none md:text-9xl" aria-hidden="true">&#9646;</span>
               <div>
-                <h1 className="text-6xl font-bold text-white tracking-tight leading-none">PITWALL</h1>
-                <p className="text-[#555] text-xs tracking-[0.3em] uppercase mt-1">F1 Strategy Engine</p>
+                <h1 className="text-6xl font-bold text-white tracking-tight leading-none sm:text-7xl md:text-8xl">
+                  PITWALL
+                </h1>
+                <p className="mt-2 text-sm tracking-[0.28em] text-[#666] uppercase sm:text-base">
+                  F1 Strategy Engine
+                </p>
               </div>
             </div>
 
-            <p className="text-[#888] text-sm text-center max-w-md leading-relaxed mb-8">
+            <p className="mb-9 max-w-xl text-center text-base leading-relaxed text-[#888] sm:max-w-2xl sm:text-lg md:mb-10">
               Pit window analysis powered by real telemetry data. Degradation curves, crossover laps,
               undercut threats, and optimal pit strategy — for every race since 2018.
             </p>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 mb-10">
+            <div className="mb-10 flex flex-col items-center gap-4 sm:mb-12 sm:flex-row md:mb-14">
               <Link
                 href="/analyze"
-                className="bg-[#e8002d] hover:bg-[#c0001f] text-white font-bold px-8 py-3
-                           transition-colors text-sm uppercase tracking-widest"
+                className="bg-[#e8002d] px-10 py-3.5 text-base font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#c0001f] sm:text-lg"
               >
                 Analyze a Race
               </Link>
               <Link
                 href="/live"
-                className="border border-[#333] hover:border-[#e8002d] text-[#888] hover:text-white
-                           font-bold px-8 py-3 transition-colors text-sm uppercase tracking-widest"
+                className="border border-[#333] px-10 py-3.5 text-base font-bold uppercase tracking-widest text-[#888] transition-colors hover:border-[#e8002d] hover:text-white sm:text-lg"
               >
                 Live Session
               </Link>
             </div>
 
             {/* Mini stats row */}
-            <div className="grid grid-cols-4 gap-px bg-[#222] w-full max-w-lg">
+            <div className="grid w-full max-w-2xl grid-cols-4 gap-px bg-[#222]">
               {[
                 { value: "2018+", label: "Seasons" },
                 { value: "20+", label: "Circuits" },
                 { value: "5", label: "Compounds" },
                 { value: "15s", label: "Live Refresh" },
               ].map((s) => (
-                <div key={s.label} className="bg-[#0a0a0a] py-3 text-center">
-                  <p className="text-white font-mono font-bold text-sm">{s.value}</p>
-                  <p className="text-[#555] text-[9px] uppercase tracking-widest">{s.label}</p>
+                <div key={s.label} className="bg-[#0a0a0a] py-4 text-center sm:py-5">
+                  <p className="font-mono text-lg font-bold text-white sm:text-xl md:text-2xl">{s.value}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-widest text-[#555] sm:text-xs">{s.label}</p>
                 </div>
               ))}
             </div>

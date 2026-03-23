@@ -425,7 +425,7 @@ def get_race_control_events(session: fastf1.core.Session) -> list[dict]:
                 current_event["end_lap"] = lap_num
                 events.append(current_event)
             current_event = {"type": "SC", "start_lap": lap_num, "end_lap": lap_num}
-        elif current_event and ("ENDING" in msg or "GREEN" in msg or "RESTART" in msg):
+        elif current_event and ("ENDING" in msg or "GREEN" in msg or "RESTART" in msg or "IN THIS LAP" in msg):
             current_event["end_lap"] = lap_num
             events.append(current_event)
             current_event = None
