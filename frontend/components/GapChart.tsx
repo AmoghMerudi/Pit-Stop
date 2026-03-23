@@ -1,6 +1,7 @@
 "use client"
 
-import type { GapEvolutionPoint, RaceControlEvent } from "@/lib/api"
+import type { GapEvolutionPoint, RaceControlEvent, DriverInfo } from "@/lib/api"
+import { getDriverColor } from "@/lib/constants"
 import ChartFullScreen from "./ChartFullScreen"
 import {
   LineChart,
@@ -20,9 +21,10 @@ interface Props {
   currentLap: number | null
   driver: string
   raceControl?: RaceControlEvent[]
+  driverInfo?: DriverInfo[]
 }
 
-const PALETTE = ["#e8002d", "#06b6d4", "#f97316", "#a855f7", "#22c55e"]
+const FALLBACK_PALETTE = ["#e8002d", "#06b6d4", "#f97316", "#a855f7", "#22c55e"]
 
 const RC_COLORS: Record<string, { fill: string; label: string }> = {
   SC: { fill: "#fbbf24", label: "SC" },
@@ -30,7 +32,7 @@ const RC_COLORS: Record<string, { fill: string; label: string }> = {
   RED: { fill: "#ef4444", label: "RED" },
 }
 
-export default function GapChart({ data, currentLap, driver, raceControl }: Props) {
+export default function GapChart({ data, currentLap, driver, raceControl, driverInfo }: Props) {
   if (!data.length) return null
 
   // Collect all rival codes from the data
@@ -40,7 +42,7 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
       rivalSet.add(key)
     }
   }
-  const rivals = Array.from(rivalSet).slice(0, 5)
+  const rivals = Array.from(rivalSet)
 
   if (!rivals.length) return null
 
@@ -77,7 +79,7 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
       <p className="text-[9px] text-[var(--text-muted)] mb-3">
         vs {driver} — positive = {driver} ahead
       </p>
-      <ResponsiveContainer width="100%" height={isFullScreen ? "100%" : 280} className={isFullScreen ? "flex-1 min-h-0" : ""}>
+      <ResponsiveContainer width="100%" height={isFullScreen ? "100%" : 450} className={isFullScreen ? "flex-1 min-h-0" : ""}>
         <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.6} />
           <XAxis
@@ -146,7 +148,7 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
               key={rival}
               type="monotone"
               dataKey={rival}
-              stroke={PALETTE[i % PALETTE.length]}
+              stroke={getDriverColor(rival, driverInfo) !== "#666" ? getDriverColor(rival, driverInfo) : FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]}
               strokeWidth={1.5}
               dot={false}
               connectNulls

@@ -1,15 +1,17 @@
 "use client"
 
-import type { LapTimeStats } from "@/lib/api"
+import type { LapTimeStats, DriverInfo } from "@/lib/api"
+import { getDriverColor } from "@/lib/constants"
 import ChartFullScreen from "./ChartFullScreen"
 
 interface LapTimeDistributionProps {
   data: LapTimeStats[]
   highlightDriver?: string
+  driverInfo?: DriverInfo[]
   onSelectDriver?: (driver: string) => void
 }
 
-export default function LapTimeDistribution({ data, highlightDriver, onSelectDriver }: LapTimeDistributionProps) {
+export default function LapTimeDistribution({ data, highlightDriver, driverInfo, onSelectDriver }: LapTimeDistributionProps) {
   if (data.length === 0) return null
 
   // Find the global range for scaling
@@ -53,12 +55,19 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
               onClick={() => onSelectDriver?.(stat.driver)}
               className={`flex items-center gap-2 transition-opacity ${isHighlighted ? "opacity-100" : highlightDriver ? "opacity-40" : "opacity-80"} ${onSelectDriver ? "cursor-pointer hover:opacity-100" : ""}`}
             >
-              <span
-                className={`text-[10px] font-mono w-10 text-right shrink-0 transition-colors ${
-                  isHighlighted ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-muted)]"
-                }`}
-              >
-                {stat.driver}
+              <span className="flex items-center gap-1 w-12 justify-end shrink-0">
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: getDriverColor(stat.driver, driverInfo) }}
+                />
+                <span
+                  className={`text-[10px] font-mono transition-colors ${
+                    isHighlighted ? "font-bold" : ""
+                  }`}
+                  style={{ color: isHighlighted ? getDriverColor(stat.driver, driverInfo) : "var(--text-muted)" }}
+                >
+                  {stat.driver}
+                </span>
               </span>
               <div className="flex-1 h-5 relative">
                 {/* Whisker line */}
@@ -77,8 +86,12 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
                 />
                 {/* IQR box */}
                 <div
-                  className={`absolute top-0.5 bottom-0.5 rounded-sm ${isHighlighted ? "bg-[#e8002d]/60" : "bg-[var(--border)]"}`}
-                  style={{ left: `${boxLeft}%`, width: `${boxWidth}%` }}
+                  className={`absolute top-0.5 bottom-0.5 rounded-sm ${isHighlighted ? "" : "bg-[var(--border)]"}`}
+                  style={{
+                    left: `${boxLeft}%`,
+                    width: `${boxWidth}%`,
+                    ...(isHighlighted ? { backgroundColor: getDriverColor(stat.driver, driverInfo), opacity: 0.5 } : {}),
+                  }}
                 />
                 {/* Median line */}
                 <div

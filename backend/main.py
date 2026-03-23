@@ -14,7 +14,7 @@ from degradation import bayesian_update, find_cliff_lap, fuel_correct_laptimes
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds, resolve_driver_curves
 from ingestion import CURRENT_YEAR, OPENF1_BASE_URL, OPENF1_TIMEOUT, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
-from models import DegradationCurve, DriverCurveResult, ErrorResponse, GapEvolutionPoint, HealthResponse, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
+from models import DegradationCurve, DriverCurveResult, DriverInfo, ErrorResponse, GapEvolutionPoint, HealthResponse, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
 
@@ -89,6 +89,30 @@ def get_schedule(year: int):
     except Exception as exc:
         logger.error("Error in /schedule/%d: %s", year, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not load schedule")
+
+
+@app.get("/race/{year}/{round_number}/drivers", response_model=list[DriverInfo])
+def get_drivers(year: int, round_number: int):
+    """Return driver info (code, name, team, team color) for a race."""
+    try:
+        session = load_session(year, round_number)
+        results = session.results
+        drivers = []
+        for _, row in results.iterrows():
+            code = row.get("Abbreviation", "")
+            if not code:
+                continue
+            drivers.append(DriverInfo(
+                code=str(code),
+                name=str(row.get("FullName", code)),
+                team=str(row.get("TeamName", "")),
+                team_color=str(row.get("TeamColor", "555555")).lstrip("#"),
+                number=int(row.get("DriverNumber", 0)),
+            ))
+        return drivers
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/drivers: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not load driver info")
 
 
 @app.get("/race/{year}/{round_number}/degradation", response_model=list[DegradationCurve])

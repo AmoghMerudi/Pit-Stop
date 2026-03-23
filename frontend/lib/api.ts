@@ -106,6 +106,18 @@ export function getSchedule(year: number): Promise<RaceEvent[]> {
   return apiFetch(`/schedule/${year}`)
 }
 
+export interface DriverInfo {
+  code: string
+  name: string
+  team: string
+  team_color: string // hex without #
+  number: number
+}
+
+export function getDrivers(year: number, round: number): Promise<DriverInfo[]> {
+  return apiFetch(`/race/${year}/${round}/drivers`)
+}
+
 export function getDegradation(year: number, round: number, driver?: string): Promise<DegradationCurve[]> {
   const query = driver ? `?driver=${driver}` : ""
   return apiFetch(`/race/${year}/${round}/degradation${query}`)

@@ -1,10 +1,11 @@
-import type { DriverStateResponse } from "@/lib/api"
-import { COMPOUND_HEX } from "@/lib/constants"
+import type { DriverStateResponse, DriverInfo } from "@/lib/api"
+import { COMPOUND_HEX, getDriverColor } from "@/lib/constants"
 
 interface TimingTowerProps {
   drivers: DriverStateResponse[]
   selectedDriver: string
   threats: string[]
+  driverInfo?: DriverInfo[]
   onSelectDriver?: (driver: string) => void
 }
 
@@ -23,9 +24,8 @@ const STATUS_STYLE: Record<string, { text: string; color: string }> = {
   RETIRED: { text: "DNF", color: "#ef4444" },
 }
 
-export default function TimingTower({ drivers, selectedDriver, threats, onSelectDriver }: TimingTowerProps) {
+export default function TimingTower({ drivers, selectedDriver, threats, driverInfo, onSelectDriver }: TimingTowerProps) {
   const sorted = [...drivers].sort((a, b) => {
-    // DNF/DSQ/RETIRED go to the bottom, sorted by position or name
     const aOut = a.status === "DNF" || a.status === "DSQ" || a.status === "RETIRED"
     const bOut = b.status === "DNF" || b.status === "DSQ" || b.status === "RETIRED"
     if (aOut && !bOut) return 1
@@ -47,7 +47,7 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1.5 text-xs text-[var(--text-section)] uppercase tracking-wider font-medium border-b border-[var(--border)]">
+      <div className="grid grid-cols-[28px_52px_60px_16px_36px] gap-1 px-3 py-1.5 text-xs text-[var(--text-section)] uppercase tracking-wider font-medium border-b border-[var(--border)]">
         <span>P</span>
         <span>DRV</span>
         <span>GAP</span>
@@ -61,19 +61,23 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
         const isThreat = threatSet.has(d.driver)
         const statusInfo = d.status ? STATUS_STYLE[d.status] : null
         const isOut = d.status === "DNF" || d.status === "DSQ" || d.status === "RETIRED"
+        const teamColor = getDriverColor(d.driver, driverInfo)
 
         return (
           <div
             key={d.driver}
             onClick={() => onSelectDriver?.(d.driver)}
             className={`
-              grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1 items-center relative
+              grid grid-cols-[28px_48px_60px_16px_36px] gap-1 pr-3 py-1 items-center relative
               border-b border-[var(--border)]
               ${onSelectDriver ? "cursor-pointer hover:bg-[var(--surface-raised)]" : ""}
-              ${isThreat && !isOut ? "border-l-2 border-l-[#e8002d]" : "border-l-2 border-l-transparent"}
               ${isSelected ? "bg-[#e8002d]/8" : ""}
               ${isOut ? "opacity-40" : ""}
             `}
+            style={{
+              borderLeft: `3px solid ${isThreat && !isOut ? "#e8002d" : isOut ? "transparent" : teamColor}`,
+              paddingLeft: "9px",
+            }}
           >
             {/* Position */}
             <span className="text-sm font-mono text-[var(--text-muted)]">
@@ -85,6 +89,7 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
               className={`text-sm font-mono font-bold ${
                 isSelected ? "text-[#e8002d]" : "text-[var(--text-primary)]"
               }`}
+              style={{ color: isSelected ? "#e8002d" : isOut ? undefined : teamColor }}
             >
               {d.driver}
             </span>

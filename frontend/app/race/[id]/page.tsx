@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { getDegradation, getStrategy, getSectors, getWeather, getGapEvolution, getRaceControl, getStints, getPositions, getLapTimes, getPitStops, getRaceSummary } from "@/lib/api"
-import type { DegradationCurve, StrategyResponse, SectorTime, WeatherDataPoint, GapEvolutionPoint, RaceControlEvent, StintInfo, PositionHistoryPoint, LapTimeStats, PitStopInfo, RaceSummary as RaceSummaryType } from "@/lib/api"
+import { getDegradation, getStrategy, getSectors, getWeather, getGapEvolution, getRaceControl, getStints, getPositions, getLapTimes, getPitStops, getRaceSummary, getDrivers } from "@/lib/api"
+import type { DegradationCurve, StrategyResponse, SectorTime, WeatherDataPoint, GapEvolutionPoint, RaceControlEvent, StintInfo, PositionHistoryPoint, LapTimeStats, PitStopInfo, RaceSummary as RaceSummaryType, DriverInfo } from "@/lib/api"
 import DegradationChart from "@/components/DegradationChart"
 import TimingTower from "@/components/TimingTower"
 import MetricTile from "@/components/MetricTile"
@@ -69,6 +69,7 @@ export default function RacePage({ params }: PageProps) {
   const [lapTimes, setLapTimes] = useState<LapTimeStats[]>([])
   const [pitStops, setPitStops] = useState<PitStopInfo[]>([])
   const [summary, setSummary] = useState<RaceSummaryType | null>(null)
+  const [driverInfo, setDriverInfo] = useState<DriverInfo[]>([])
   const dashboardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -104,8 +105,9 @@ export default function RacePage({ params }: PageProps) {
       getLapTimes(year, round),
       getPitStops(year, round),
       getRaceSummary(year, round),
+      getDrivers(year, round).catch(() => [] as DriverInfo[]),
     ])
-      .then(([degradationData, strategyData, weatherData, gapData, rcData, stintData, posData, ltData, psData, summaryData]) => {
+      .then(([degradationData, strategyData, weatherData, gapData, rcData, stintData, posData, ltData, psData, summaryData, driversData]) => {
         setCurves(degradationData)
         setStrategy(strategyData)
         setWeather(weatherData)
@@ -116,6 +118,7 @@ export default function RacePage({ params }: PageProps) {
         setLapTimes(ltData)
         setPitStops(psData)
         setSummary(summaryData)
+        setDriverInfo(driversData)
         const tl = strategyData.total_laps ?? strategyData.current_lap ?? 57
         const cl = strategyData.current_lap ?? tl
         setTotalLaps(tl)
@@ -276,6 +279,7 @@ export default function RacePage({ params }: PageProps) {
             drivers={strategy.all_drivers}
             selectedDriver={activeDriver}
             threats={threatCodes}
+            driverInfo={driverInfo}
             onSelectDriver={handleDriverSelect}
           />
 
@@ -477,7 +481,7 @@ export default function RacePage({ params }: PageProps) {
 
             {/* Gap evolution chart */}
             {gaps && gaps.length > 0 && (
-              <GapChart data={gaps} currentLap={selectedLap} driver={activeDriver} raceControl={raceControl} />
+              <GapChart data={gaps} currentLap={selectedLap} driver={activeDriver} raceControl={raceControl} driverInfo={driverInfo} />
             )}
 
             {/* Position changes chart */}
@@ -487,6 +491,7 @@ export default function RacePage({ params }: PageProps) {
                 highlightDriver={activeDriver}
                 raceControl={raceControl}
                 currentLap={selectedLap}
+                driverInfo={driverInfo}
                 onSelectDriver={handleDriverSelect}
               />
             )}
@@ -498,17 +503,17 @@ export default function RacePage({ params }: PageProps) {
 
             {/* Lap time distribution */}
             {lapTimes.length > 0 && (
-              <LapTimeDistribution data={lapTimes} highlightDriver={activeDriver} onSelectDriver={handleDriverSelect} />
+              <LapTimeDistribution data={lapTimes} highlightDriver={activeDriver} driverInfo={driverInfo} onSelectDriver={handleDriverSelect} />
             )}
 
             {/* Tyre strategy timeline */}
             {stints.length > 0 && (
-              <TyreTimeline stints={stints} totalLaps={totalLaps} onSelectDriver={handleDriverSelect} highlightDriver={activeDriver} />
+              <TyreTimeline stints={stints} totalLaps={totalLaps} onSelectDriver={handleDriverSelect} highlightDriver={activeDriver} driverInfo={driverInfo} />
             )}
 
             {/* Pit stop performance */}
             {pitStops.length > 0 && (
-              <PitStopTable stops={pitStops} highlightDriver={activeDriver} onSelectDriver={handleDriverSelect} />
+              <PitStopTable stops={pitStops} highlightDriver={activeDriver} driverInfo={driverInfo} onSelectDriver={handleDriverSelect} />
             )}
           </div>
         </div>

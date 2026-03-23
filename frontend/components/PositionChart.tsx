@@ -11,25 +11,9 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts"
-import type { PositionHistoryPoint, RaceControlEvent } from "@/lib/api"
+import type { PositionHistoryPoint, RaceControlEvent, DriverInfo } from "@/lib/api"
+import { getDriverColor, getDriverTeam } from "@/lib/constants"
 import ChartFullScreen from "./ChartFullScreen"
-
-const DRIVER_COLORS: Record<string, string> = {
-  VER: "#3671C6", PER: "#3671C6",
-  HAM: "#27F4D2", RUS: "#27F4D2",
-  LEC: "#E8002D", SAI: "#E8002D", HAM2: "#E8002D",
-  NOR: "#FF8000", PIA: "#FF8000",
-  ALO: "#229971", STR: "#229971",
-  GAS: "#2293D1", OCO: "#2293D1", DOO: "#2293D1",
-  TSU: "#6692FF", RIC: "#6692FF", LAW: "#6692FF",
-  BOT: "#52E252", ZHO: "#52E252",
-  MAG: "#B6BABD", HUL: "#B6BABD", BEA: "#B6BABD",
-  ALB: "#64C4FF", SAR: "#64C4FF", COL: "#64C4FF",
-  BOR: "#1E6176", HAD: "#1E6176",
-  ANT: "#E8002D", KIM: "#E8002D",
-}
-
-const FALLBACK_COLOR = "#555"
 
 const RC_COLORS: Record<string, string> = {
   SC: "rgba(255, 215, 0, 0.12)",
@@ -42,10 +26,11 @@ interface PositionChartProps {
   highlightDriver?: string
   raceControl?: RaceControlEvent[]
   currentLap?: number | null
+  driverInfo?: DriverInfo[]
   onSelectDriver?: (driver: string) => void
 }
 
-export default function PositionChart({ data, highlightDriver, raceControl, currentLap, onSelectDriver }: PositionChartProps) {
+export default function PositionChart({ data, highlightDriver, raceControl, currentLap, driverInfo, onSelectDriver }: PositionChartProps) {
   if (data.length === 0) return null
 
   // Get all drivers from the data
@@ -118,13 +103,13 @@ export default function PositionChart({ data, highlightDriver, raceControl, curr
           {/* One line per driver */}
           {drivers.map((drv) => {
             const isHighlighted = drv === highlightDriver
-            const color = DRIVER_COLORS[drv] ?? FALLBACK_COLOR
+            const color = getDriverColor(drv, driverInfo)
             return (
               <Line
                 key={drv}
                 type="monotone"
                 dataKey={drv}
-                stroke={isHighlighted ? color : color}
+                stroke={color}
                 strokeWidth={isHighlighted ? 2.5 : 1}
                 strokeOpacity={isHighlighted ? 1 : highlightDriver ? 0.2 : 0.5}
                 dot={false}
@@ -148,7 +133,8 @@ export default function PositionChart({ data, highlightDriver, raceControl, curr
       {onSelectDriver && (
         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
           {drivers.map((drv) => {
-            const color = DRIVER_COLORS[drv] ?? FALLBACK_COLOR
+            const color = getDriverColor(drv, driverInfo)
+            const team = getDriverTeam(drv, driverInfo)
             const isHighlighted = drv === highlightDriver
             return (
               <button
@@ -157,9 +143,13 @@ export default function PositionChart({ data, highlightDriver, raceControl, curr
                 className={`flex items-center gap-1 text-[10px] font-mono transition-opacity hover:opacity-100 ${
                   isHighlighted ? "opacity-100 font-bold" : highlightDriver ? "opacity-40" : "opacity-70"
                 }`}
+                title={team ?? undefined}
               >
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                 <span style={{ color }}>{drv}</span>
+                {team && isHighlighted && (
+                  <span className="text-[9px] text-[var(--text-muted)] font-normal ml-0.5">{team}</span>
+                )}
               </button>
             )
           })}

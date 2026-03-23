@@ -1,7 +1,7 @@
 "use client"
 
-import type { StintInfo } from "@/lib/api"
-import { COMPOUND_HEX } from "@/lib/constants"
+import type { StintInfo, DriverInfo } from "@/lib/api"
+import { COMPOUND_HEX, getDriverColor } from "@/lib/constants"
 import ChartFullScreen from "./ChartFullScreen"
 
 interface TyreTimelineProps {
@@ -9,9 +9,10 @@ interface TyreTimelineProps {
   totalLaps: number
   onSelectDriver?: (driver: string) => void
   highlightDriver?: string
+  driverInfo?: DriverInfo[]
 }
 
-export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highlightDriver }: TyreTimelineProps) {
+export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highlightDriver, driverInfo }: TyreTimelineProps) {
   if (stints.length === 0) return null
 
   // Group stints by driver
@@ -55,8 +56,9 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
             >
               <span
                 className={`text-[10px] font-mono w-10 text-right shrink-0 transition-colors ${
-                  driver === highlightDriver ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-muted)]"
+                  driver === highlightDriver ? "font-bold" : ""
                 }`}
+                style={{ color: driver === highlightDriver ? getDriverColor(driver, driverInfo) : "var(--text-muted)" }}
               >
                 {driver}
               </span>

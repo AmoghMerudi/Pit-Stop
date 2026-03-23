@@ -336,7 +336,7 @@ def get_weather_data(session: fastf1.core.Session) -> list[dict]:
 
 def get_gap_evolution(session: fastf1.core.Session, driver: str) -> list[dict]:
     """
-    Compute lap-by-lap gap between a driver and their 5 closest rivals.
+    Compute lap-by-lap gap between a driver and all other drivers.
 
     Uses the 'Time' column (finish-line crossing timestamp) for accurate gaps.
     gap = rival_cross_time - target_cross_time (positive = target ahead of rival).
@@ -360,16 +360,8 @@ def get_gap_evolution(session: fastf1.core.Session, driver: str) -> list[dict]:
         all_laps["cum_time"] = all_laps.groupby("driver")["lap_time_sec"].cumsum()
         time_col = "cum_time"
 
-    # Find 5 closest rivals by gap at the last lap the target driver completed
-    driver_laps = all_laps[all_laps["driver"] == driver]
-    if driver_laps.empty:
-        return []
-    max_driver_lap = int(driver_laps["lap_number"].max())
-    target_final = driver_laps[driver_laps["lap_number"] == max_driver_lap][time_col].iloc[0]
-
-    final = all_laps[all_laps["lap_number"] == max_driver_lap].copy()
-    final["abs_gap"] = (final[time_col] - target_final).abs()
-    rivals = final[final["driver"] != driver].nsmallest(5, "abs_gap")["driver"].tolist()
+    # Include all other drivers as rivals
+    rivals = all_laps[all_laps["driver"] != driver]["driver"].unique().tolist()
 
     if not rivals:
         return []

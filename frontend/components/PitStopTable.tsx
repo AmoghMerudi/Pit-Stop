@@ -1,16 +1,17 @@
 "use client"
 
-import type { PitStopInfo } from "@/lib/api"
-import { COMPOUND_HEX } from "@/lib/constants"
+import type { PitStopInfo, DriverInfo } from "@/lib/api"
+import { COMPOUND_HEX, getDriverColor } from "@/lib/constants"
 import ChartFullScreen from "./ChartFullScreen"
 
 interface PitStopTableProps {
   stops: PitStopInfo[]
   highlightDriver?: string
+  driverInfo?: DriverInfo[]
   onSelectDriver?: (driver: string) => void
 }
 
-export default function PitStopTable({ stops, highlightDriver, onSelectDriver }: PitStopTableProps) {
+export default function PitStopTable({ stops, highlightDriver, driverInfo, onSelectDriver }: PitStopTableProps) {
   if (stops.length === 0) return null
 
   // Find fastest pit stop for highlighting
@@ -48,8 +49,17 @@ export default function PitStopTable({ stops, highlightDriver, onSelectDriver }:
                   } ${highlightDriver && !isHighlighted ? "opacity-40" : ""} ${onSelectDriver ? "cursor-pointer hover:opacity-100 hover:bg-[var(--surface-raised)]" : ""}`}
                 >
                   <td className="py-1.5 px-2">
-                    <span className={`font-mono font-bold ${isHighlighted ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
-                      {stop.driver}
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: getDriverColor(stop.driver, driverInfo) }}
+                      />
+                      <span
+                        className="font-mono font-bold"
+                        style={{ color: isHighlighted ? getDriverColor(stop.driver, driverInfo) : "var(--text-muted)" }}
+                      >
+                        {stop.driver}
+                      </span>
                     </span>
                   </td>
                   <td className="py-1.5 px-2 text-center font-mono text-[var(--text-muted)]">

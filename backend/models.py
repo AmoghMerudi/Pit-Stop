@@ -13,6 +13,14 @@ class HealthResponse(BaseModel):
     openf1_error: str | None = None
 
 
+class DriverInfo(BaseModel):
+    code: str
+    name: str
+    team: str
+    team_color: str  # hex without #
+    number: int
+
+
 class DriverCurveResult(BaseModel):
     slope: float
     intercept: float
