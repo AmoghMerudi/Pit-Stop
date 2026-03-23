@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 import threading
@@ -28,7 +29,7 @@ CURRENT_YEAR = date.today().year
 # crashing the server on memory-constrained free tiers.
 _session_cache: dict[tuple[int, int], fastf1.core.Session] = {}
 _session_lock = threading.Lock()
-_SESSION_CACHE_MAX = 2  # keep at most 2 sessions in memory (free tier ~512MB)
+_SESSION_CACHE_MAX = 1  # keep at most 1 session in memory (Render free tier ~512MB)
 
 
 def load_session(year: int, round_number: int) -> fastf1.core.Session:
@@ -57,6 +58,7 @@ def load_session(year: int, round_number: int) -> fastf1.core.Session:
         if len(_session_cache) >= _SESSION_CACHE_MAX:
             oldest = next(iter(_session_cache))
             del _session_cache[oldest]
+            gc.collect()  # Force garbage collection to free memory immediately
 
         _session_cache[key] = session
         return session
