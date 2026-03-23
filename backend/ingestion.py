@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from datetime import date
 
 import fastf1
@@ -23,33 +24,42 @@ fastf1.Cache.enable_cache(CACHE_DIR)
 
 CURRENT_YEAR = date.today().year
 
-# In-memory session cache to avoid redundant loads when the race page
-# fires 12+ parallel requests for the same (year, round).
+# In-memory session cache with lock to prevent parallel loads from
+# crashing the server on memory-constrained free tiers.
 _session_cache: dict[tuple[int, int], fastf1.core.Session] = {}
-_SESSION_CACHE_MAX = 3  # keep at most 3 sessions in memory
+_session_lock = threading.Lock()
+_SESSION_CACHE_MAX = 2  # keep at most 2 sessions in memory (free tier ~512MB)
 
 
 def load_session(year: int, round_number: int) -> fastf1.core.Session:
-    """Load and return a FastF1 race session. Results are cached in memory and on disk."""
+    """Load and return a FastF1 race session. Thread-safe with in-memory + disk cache."""
     if year < 2018 or year > CURRENT_YEAR:
         raise ValueError(f"Year must be between 2018 and {CURRENT_YEAR}")
     if round_number < 1 or round_number > 24:
         raise ValueError("Round number must be between 1 and 24")
 
     key = (year, round_number)
+
+    # Fast path: already cached (no lock needed for reads)
     if key in _session_cache:
         return _session_cache[key]
 
-    session = fastf1.get_session(year, round_number, "R")
-    session.load()
+    # Slow path: acquire lock so only one thread loads at a time
+    with _session_lock:
+        # Double-check after acquiring lock (another thread may have loaded it)
+        if key in _session_cache:
+            return _session_cache[key]
 
-    # Evict oldest if cache is full
-    if len(_session_cache) >= _SESSION_CACHE_MAX:
-        oldest = next(iter(_session_cache))
-        del _session_cache[oldest]
+        session = fastf1.get_session(year, round_number, "R")
+        session.load()
 
-    _session_cache[key] = session
-    return session
+        # Evict oldest if cache is full
+        if len(_session_cache) >= _SESSION_CACHE_MAX:
+            oldest = next(iter(_session_cache))
+            del _session_cache[oldest]
+
+        _session_cache[key] = session
+        return session
 
 
 def get_total_laps(session: fastf1.core.Session) -> int:
