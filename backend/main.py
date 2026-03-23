@@ -26,8 +26,7 @@ app = FastAPI(title="Pitwall — F1 Strategy Optimizer")
 
 origins = [
     "http://localhost:3000",
-    # Add your Vercel production URL here before deploying:
-    # "https://your-app.vercel.app",
+    "https://pitwall-iota.vercel.app",
 ]
 
 app.add_middleware(
