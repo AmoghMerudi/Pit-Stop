@@ -40,6 +40,7 @@ BENCHMARK_CURVES: dict[str, dict] = {
 def _load_prior_race_curves(year: int, prior_round: int) -> dict[str, dict]:
     """Load and fit degradation curves from a prior race with fuel correction."""
     session = load_session(year, prior_round)
+    circuit = session.event.get("Location") if hasattr(session, "event") else None
     laps = get_laps(session)
     laps = fuel_correct_laptimes(laps)
     try:
@@ -47,7 +48,7 @@ def _load_prior_race_curves(year: int, prior_round: int) -> dict[str, dict]:
         weather_df = pd.DataFrame([w if isinstance(w, dict) else w.dict() for w in weather]) if weather else None
     except Exception:
         weather_df = None
-    return fit_all_compounds(laps, weather_df=weather_df)
+    return fit_all_compounds(laps, weather_df=weather_df, circuit_name=circuit, fit_per_driver=False)
 
 
 def _cache_key(circuit: str, compound: str, years: list[int]) -> str:
@@ -116,7 +117,7 @@ def load_historical_degradation(circuit: str, compound: str,
 
     from degradation import fit_curve
     try:
-        result = fit_curve(combined, compound)
+        result = fit_curve(combined, compound, circuit_name=circuit)
 
         # Cache to disk
         CACHE_DIR.mkdir(parents=True, exist_ok=True)

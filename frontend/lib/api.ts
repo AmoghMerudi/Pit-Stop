@@ -16,6 +16,18 @@ async function apiFetch<T>(path: string): Promise<T> {
 
 // --- Types ---
 
+export interface DriverCurveResult {
+  slope: number
+  intercept: number
+  r2: number
+  coeffs?: number[]
+  degree?: number
+  cliff_lap?: number | null
+  cliff_confidence?: "high" | "low" | null
+  temp_coefficient?: number | null
+  type?: string
+}
+
 export interface DegradationCurve {
   compound: string
   slope: number
@@ -23,6 +35,11 @@ export interface DegradationCurve {
   r2: number
   coeffs?: number[]
   degree?: number
+  cliff_lap?: number | null
+  cliff_confidence?: "high" | "low" | null
+  temp_coefficient?: number | null
+  type?: string
+  per_driver?: Record<string, DriverCurveResult> | null
 }
 
 export interface ThreatDetail {
@@ -89,8 +106,9 @@ export function getSchedule(year: number): Promise<RaceEvent[]> {
   return apiFetch(`/schedule/${year}`)
 }
 
-export function getDegradation(year: number, round: number): Promise<DegradationCurve[]> {
-  return apiFetch(`/race/${year}/${round}/degradation`)
+export function getDegradation(year: number, round: number, driver?: string): Promise<DegradationCurve[]> {
+  const query = driver ? `?driver=${driver}` : ""
+  return apiFetch(`/race/${year}/${round}/degradation${query}`)
 }
 
 export function getStrategy(year: number, round: number, driver: string, lap?: number): Promise<StrategyResponse> {
@@ -267,6 +285,7 @@ export interface LiveDriverState {
 export interface LiveStrategyResponse extends StrategyResponse {
   curve_source: string
   rival_count: number
+  degradation_confidence: number
 }
 
 export function getLiveSession(): Promise<LiveSessionInfo> {

@@ -15,6 +15,41 @@ import type { StrategySnapshot } from "@/lib/notifications"
 
 const POLL_INTERVAL = 15_000 // 15 seconds
 
+function ModelConfidenceTile({ confidence }: { confidence: number | null | undefined }) {
+  const hasValue = confidence != null && confidence > 0
+  const pct = hasValue ? Math.round(confidence * 100) : 0
+  const barColor = !hasValue ? "#333" : confidence < 0.4 ? "#e8002d" : confidence <= 0.7 ? "#f59e0b" : "#22c55e"
+  const textColor = !hasValue
+    ? "text-[var(--text-muted)]"
+    : confidence < 0.4
+      ? "text-[#e8002d]"
+      : confidence <= 0.7
+        ? "text-[#ffd700]"
+        : "text-[#22c55e]"
+
+  return (
+    <div
+      className="p-3 border-r border-[var(--border)] last:border-r-0"
+      title="Confidence increases as more live laps are observed. Below 40%, treat recommendations as indicative only."
+    >
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-1">
+        Model Confidence
+      </p>
+      <p className={`text-2xl font-mono font-bold ${textColor}`}>
+        {hasValue ? `${pct}%` : "\u2014"}
+      </p>
+      {hasValue && (
+        <div className="mt-1.5 h-1 bg-[var(--border)] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, backgroundColor: barColor }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function netDeltaDisplay(delta: number): { value: string; status: "green" | "red" | "neutral" } {
   const sign = delta >= 0 ? "+" : ""
   return {
@@ -295,7 +330,7 @@ export default function LivePage() {
       {result && (
         <div className="flex-1 overflow-y-auto">
           {/* Metric tiles */}
-          <div className="grid grid-cols-4 border-b border-[var(--border)]">
+          <div className="grid grid-cols-5 border-b border-[var(--border)]">
             <MetricTile
               label="Crossover"
               value={result.crossover_lap >= 999 ? "\u2014" : result.crossover_lap}
@@ -316,6 +351,7 @@ export default function LivePage() {
               value={result.rival_count}
               status={result.rival_count > 0 ? "neutral" : "amber"}
             />
+            <ModelConfidenceTile confidence={result.degradation_confidence} />
           </div>
 
           {/* Tyre life prediction */}

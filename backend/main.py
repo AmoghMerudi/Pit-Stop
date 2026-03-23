@@ -3,6 +3,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
+import requests
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -11,9 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from benchmarks import load_baseline_curves
 from degradation import bayesian_update, find_cliff_lap, fuel_correct_laptimes
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
-from degradation import fit_all_compounds
-from ingestion import CURRENT_YEAR, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
-from models import DegradationCurve, ErrorResponse, GapEvolutionPoint, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
+from degradation import fit_all_compounds, resolve_driver_curves
+from ingestion import CURRENT_YEAR, OPENF1_BASE_URL, OPENF1_TIMEOUT, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
+from models import DegradationCurve, DriverCurveResult, ErrorResponse, GapEvolutionPoint, HealthResponse, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
 
@@ -42,6 +43,37 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/health", response_model=HealthResponse)
+def health():
+    """
+    Health probe for deployment monitoring.
+    Checks backend liveliness and OpenF1 reachability.
+    """
+    try:
+        response = requests.get(
+            f"{OPENF1_BASE_URL}/sessions",
+            params={"session_key": "latest"},
+            timeout=OPENF1_TIMEOUT,
+        )
+        response.raise_for_status()
+        return HealthResponse(
+            status="ok",
+            backend="ok",
+            openf1_reachable=True,
+            openf1_base_url=OPENF1_BASE_URL,
+            openf1_error=None,
+        )
+    except Exception as exc:
+        logger.warning("Health check OpenF1 probe failed: %s", exc)
+        return HealthResponse(
+            status="degraded",
+            backend="ok",
+            openf1_reachable=False,
+            openf1_base_url=OPENF1_BASE_URL,
+            openf1_error=str(exc),
+        )
+
+
 @app.get("/schedule/{year}")
 def get_schedule(year: int):
     """Return the race calendar for a given year."""
@@ -60,9 +92,10 @@ def get_schedule(year: int):
 
 
 @app.get("/race/{year}/{round_number}/degradation", response_model=list[DegradationCurve])
-def get_degradation(year: int, round_number: int):
+def get_degradation(year: int, round_number: int, driver: str | None = None):
     try:
         session = load_session(year, round_number)
+        circuit = session.event.get("Location") if hasattr(session, "event") else None
         laps = get_laps(session)
         laps = fuel_correct_laptimes(laps)
         try:
@@ -70,9 +103,33 @@ def get_degradation(year: int, round_number: int):
             weather_df = pd.DataFrame([w if isinstance(w, dict) else w.dict() for w in weather]) if weather else None
         except Exception:
             weather_df = None
-        curves = fit_all_compounds(laps, weather_df=weather_df)
+        all_curves = fit_all_compounds(laps, weather_df=weather_df, circuit_name=circuit)
+
+        if driver:
+            driver = driver.upper()
+        primary = resolve_driver_curves(all_curves, driver=driver)
+
         result = []
-        for c, v in curves.items():
+        for c, v in primary.items():
+            per_driver_data: dict[str, DriverCurveResult] | None = None
+            raw = all_curves.get(c, {})
+            if isinstance(raw, dict) and "_population" in raw:
+                per_driver_data = {}
+                for dk, dv in raw.items():
+                    if dk.startswith("_"):
+                        continue
+                    per_driver_data[dk] = DriverCurveResult(
+                        slope=dv.get("slope", 0.0),
+                        intercept=dv.get("intercept", 0.0),
+                        r2=dv.get("r2", 0.0),
+                        coeffs=dv.get("coeffs"),
+                        degree=dv.get("degree", 2),
+                        cliff_lap=dv.get("cliff_lap"),
+                        cliff_confidence=dv.get("cliff_confidence"),
+                        temp_coefficient=dv.get("temp_coefficient"),
+                        type=dv.get("type", "quadratic"),
+                    )
+
             result.append(DegradationCurve(
                 compound=c,
                 slope=v.get("slope", 0.0),
@@ -81,8 +138,10 @@ def get_degradation(year: int, round_number: int):
                 coeffs=v.get("coeffs"),
                 degree=v.get("degree", 2),
                 cliff_lap=v.get("cliff_lap"),
+                cliff_confidence=v.get("cliff_confidence"),
                 temp_coefficient=v.get("temp_coefficient"),
                 type=v.get("type", "quadratic"),
+                per_driver=per_driver_data,
             ))
         return result
     except ValueError as exc:
@@ -99,19 +158,19 @@ def get_strategy(year: int, round_number: int, driver: str, lap: int | None = No
     driver = driver.upper()
     try:
         session = load_session(year, round_number)
+        circuit = session.event.get("Location") if hasattr(session, "event") else None
         laps = get_laps(session)
         laps = fuel_correct_laptimes(laps)
-        curves = fit_all_compounds(laps)
+        all_curves = fit_all_compounds(laps, circuit_name=circuit)
+        curves = resolve_driver_curves(all_curves, driver=driver)
         max_lap = int(laps["lap_number"].max())
         total_laps = get_total_laps(session)
         current_lap = min(lap, max_lap) if lap is not None else max_lap
         remaining_laps = max(1, total_laps - current_lap)
-        # Only use laps up to the requested lap for driver states
         laps_at_lap = laps[laps["lap_number"] <= current_lap]
         race_state = get_race_state(session, current_lap)
         statuses = get_driver_statuses(session, current_lap)
         driver_states = build_driver_states(laps_at_lap, current_lap, race_state, statuses)
-        circuit = session.event.get("Location") if hasattr(session, "event") else None
         result = recommend(driver, driver_states, curves, circuit, remaining_laps)
         return StrategyResponse(**result, remaining_laps=remaining_laps, total_laps=total_laps, current_lap=current_lap)
     except ValueError as exc:
@@ -242,9 +301,11 @@ def what_if(year: int, round_number: int, driver: str, pit_lap: int = 1, new_com
     new_compound = new_compound.upper()
     try:
         session = load_session(year, round_number)
+        circuit = session.event.get("Location") if hasattr(session, "event") else None
         laps = get_laps(session)
         laps = fuel_correct_laptimes(laps)
-        curves = fit_all_compounds(laps)
+        all_curves = fit_all_compounds(laps, circuit_name=circuit)
+        curves = resolve_driver_curves(all_curves, driver=driver)
         total_laps = get_total_laps(session)
         max_lap = int(laps["lap_number"].max())
 

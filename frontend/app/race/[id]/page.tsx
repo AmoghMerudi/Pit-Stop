@@ -162,6 +162,8 @@ export default function RacePage({ params }: PageProps) {
   const currentTyreAge = selectedDriverState?.tyre_age
   const threatCodes = strategy?.undercut_threats.map((t) => t.driver) ?? []
   const nd = strategy ? netDeltaDisplay(strategy.net_delta) : null
+  const driverCompoundCurve = curves?.find((c) => c.compound === selectedDriverState?.compound)
+  const cliffConfidence = driverCompoundCurve?.cliff_confidence ?? null
 
   return (
     <div className="h-screen flex flex-col bg-[var(--surface)]">
@@ -337,6 +339,7 @@ export default function RacePage({ params }: PageProps) {
               crossoverLap={strategy.crossover_lap}
               recommendPit={strategy.recommend_pit}
               reason={strategy.reason}
+              cliffConfidence={cliffConfidence}
             />
 
             {/* Pit window timeline */}

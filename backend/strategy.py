@@ -23,6 +23,8 @@ def recommend(
         raise ValueError(f"Driver {driver} not found in session data")
 
     state = driver_states[driver]
+    compound = state.get("compound")
+    cliff_confidence = curves.get(compound, {}).get("cliff_confidence") if compound else None
     window = get_pit_window(state, curves, circuit, remaining_laps)
 
     undercut_threats = find_undercut_threats(driver, driver_states, curves, circuit)
@@ -80,4 +82,5 @@ def recommend(
         "pit_loss": get_pit_loss(circuit),
         "circuit": circuit,
         "best_alt": best_alt,
+        "cliff_confidence": cliff_confidence,
     }

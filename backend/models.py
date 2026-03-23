@@ -5,6 +5,26 @@ class ErrorResponse(BaseModel):
     error: str
 
 
+class HealthResponse(BaseModel):
+    status: str
+    backend: str
+    openf1_reachable: bool
+    openf1_base_url: str
+    openf1_error: str | None = None
+
+
+class DriverCurveResult(BaseModel):
+    slope: float
+    intercept: float
+    r2: float
+    coeffs: list[float] | None = None
+    degree: int = 1
+    cliff_lap: int | None = None
+    cliff_confidence: str | None = None  # "high", "low", or None
+    temp_coefficient: float | None = None
+    type: str = "quadratic"
+
+
 class DegradationCurve(BaseModel):
     compound: str
     slope: float
@@ -13,8 +33,10 @@ class DegradationCurve(BaseModel):
     coeffs: list[float] | None = None
     degree: int = 1
     cliff_lap: int | None = None
+    cliff_confidence: str | None = None  # "high", "low", or None
     temp_coefficient: float | None = None
-    type: str = "quadratic"  # "quadratic" or "piecewise"
+    type: str = "quadratic"  # "quadratic", "piecewise", or "linear"
+    per_driver: dict[str, DriverCurveResult] | None = None
 
 
 class PitWindowResult(BaseModel):
@@ -53,6 +75,7 @@ class StrategyResponse(BaseModel):
     pit_loss: float
     circuit: str | None
     best_alt: str | None = None
+    cliff_confidence: str | None = None
     remaining_laps: int = 20
     total_laps: int | None = None
     current_lap: int | None = None

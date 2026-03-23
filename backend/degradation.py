@@ -14,7 +14,14 @@ import logging
 import numpy as np
 import pandas as pd
 
-from constants import COMPOUNDS, FUEL_CONSUMPTION_KG_PER_LAP, FUEL_EFFECT_PER_LAP_KG, FUEL_LOAD_KG
+from constants import (
+    COMPOUNDS,
+    FUEL_CONSUMPTION_KG_PER_LAP,
+    FUEL_EFFECT_PER_LAP_KG,
+    FUEL_LOAD_KG,
+    MAX_FITTING_STINT,
+    get_lap_offset,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +67,59 @@ def compute_delta(laps_df: pd.DataFrame) -> pd.DataFrame:
     medians = df.groupby(["driver", "stint"])["lap_time"].transform("median")
     df["lap_time_delta"] = df["lap_time"] - medians
     return df
+
+
+# ---------------------------------------------------------------------------
+# 2b. Track evolution correction
+# ---------------------------------------------------------------------------
+
+def apply_evolution_correction(
+    df: pd.DataFrame,
+    lap_col: str = "lap_number",
+    delta_col: str = "lap_time_delta",
+    k: float = 0.15,
+) -> pd.DataFrame:
+    """
+    Subtract estimated track evolution gain from delta lap times.
+
+    Evolution is modelled as an exponential decay: gain * exp(-k * lap_number).
+    The gain magnitude is estimated from the standard deviation of pace across
+    laps 1-10 in the session — a rough proxy for the evolution amplitude.
+    Falls back to no correction if lap_col is absent.
+    """
+    if lap_col not in df.columns:
+        return df
+    early = df[df[lap_col] <= 10]
+    if early.empty or delta_col not in df.columns:
+        return df
+    evolution_gain = early[delta_col].std()
+    if np.isnan(evolution_gain) or evolution_gain == 0:
+        return df
+    df = df.copy()
+    df[delta_col] = df[delta_col] - evolution_gain * np.exp(-k * df[lap_col])
+    return df
+
+
+# ---------------------------------------------------------------------------
+# 2c. IQR-based outlier filtering
+# ---------------------------------------------------------------------------
+
+def filter_outlier_laps(
+    df: pd.DataFrame, delta_col: str = "lap_time_delta", k: float = 1.5,
+) -> pd.DataFrame:
+    """
+    Remove laps where delta is outside [Q1 - k*IQR, Q3 + k*IQR].
+    Eliminates SC laps, VSC laps, and anomalous stints without
+    needing explicit race control data.
+    """
+    if delta_col not in df.columns or df.empty:
+        return df
+    q1 = df[delta_col].quantile(0.25)
+    q3 = df[delta_col].quantile(0.75)
+    iqr = q3 - q1
+    lower = q1 - k * iqr
+    upper = q3 + k * iqr
+    return df[(df[delta_col] >= lower) & (df[delta_col] <= upper)]
 
 
 # ---------------------------------------------------------------------------
@@ -169,11 +229,17 @@ def _fit_temp_coefficient(ages: np.ndarray, deltas: np.ndarray,
 # ---------------------------------------------------------------------------
 
 def fit_curve(laps_df: pd.DataFrame, compound: str, degree: int = FIT_DEGREE,
-              weather_df: pd.DataFrame | None = None) -> dict:
+              weather_df: pd.DataFrame | None = None,
+              circuit_name: str | None = None) -> dict:
     """
     Fit a degradation curve for one compound.
 
-    Tries piecewise linear first (if ≥8 laps), falls back to quadratic (if ≥5).
+    Pre-fit pipeline (applied in order):
+      a. Track-evolution lap offset — discard early unrepresentative laps
+      b. Track evolution correction — subtract exponential rubber-in effect
+      c. Stint length cap — ignore laps beyond realistic stint for compound
+
+    Then tries piecewise linear (≥8 laps), falls back to quadratic (≥5).
     Optionally fits a temperature coefficient if weather data is available.
 
     Returns dict with: type, slope, intercept, r2, coeffs, degree, cliff_lap,
@@ -182,7 +248,25 @@ def fit_curve(laps_df: pd.DataFrame, compound: str, degree: int = FIT_DEGREE,
     if compound not in COMPOUNDS:
         raise ValueError(f"Unknown compound: {compound}")
 
-    subset = laps_df[laps_df["compound"] == compound]
+    subset = laps_df[laps_df["compound"] == compound].copy()
+
+    # --- Pre-fit filter (a): track evolution lap offset ---
+    if circuit_name and "tyre_age" in subset.columns:
+        offset = get_lap_offset(circuit_name)
+        subset = subset[subset["tyre_age"] > offset]
+
+    # --- Pre-fit filter (b): exponential evolution correction ---
+    if circuit_name and "lap_time_delta" in subset.columns:
+        subset = apply_evolution_correction(subset)
+
+    # --- Pre-fit filter (c): cap stint length per compound ---
+    if "tyre_age" in subset.columns:
+        max_age = MAX_FITTING_STINT.get(compound, MAX_FITTING_STINT["default"])
+        subset = subset[subset["tyre_age"] <= max_age]
+
+    # --- Pre-fit filter (d): IQR outlier removal ---
+    subset = filter_outlier_laps(subset)
+
     n_laps = len(subset)
 
     if n_laps < MIN_LAPS_QUADRATIC_FALLBACK:
@@ -198,8 +282,26 @@ def fit_curve(laps_df: pd.DataFrame, compound: str, degree: int = FIT_DEGREE,
     if n_laps >= MIN_LAPS_FOR_FIT:
         result = _fit_piecewise(x, y)
 
+    # Monotonicity check: post-cliff slope must not be shallower than pre-cliff
+    if result is not None and result.get("type") == "piecewise":
+        slopes = result.get("slopes", [])
+        if len(slopes) >= 2 and slopes[1] < slopes[0]:
+            pw_cliff_lap = result["cliff_lap"]
+            logger.info(
+                "Piecewise monotonicity violation for %s (slopes=%s) "
+                "— refitting as single linear, cliff_confidence=low",
+                compound, [f"{s:.4f}" for s in slopes],
+            )
+            result = _fit_quadratic(x, y, degree=1)
+            result["type"] = "linear"
+            result["cliff_lap"] = pw_cliff_lap
+            result["cliff_confidence"] = "low"
+        else:
+            result["cliff_confidence"] = "high"
+
     if result is None:
         result = _fit_quadratic(x, y, degree)
+        result["cliff_confidence"] = None
 
     if result["r2"] < 0.5:
         logger.warning("Low R² for %s: %.2f (type=%s)", compound, result["r2"], result.get("type"))
@@ -225,22 +327,87 @@ def fit_curve(laps_df: pd.DataFrame, compound: str, degree: int = FIT_DEGREE,
 
 
 def fit_all_compounds(laps_df: pd.DataFrame,
-                      weather_df: pd.DataFrame | None = None) -> dict[str, dict]:
+                      weather_df: pd.DataFrame | None = None,
+                      circuit_name: str | None = None,
+                      fit_per_driver: bool = True) -> dict[str, dict]:
     """
     Run fit_curve for every compound present in the DataFrame.
-    Skips compounds with insufficient data (logs warning, does not raise).
+
+    When *fit_per_driver* is True (default) and a "driver" column exists,
+    each compound entry becomes::
+
+        {
+            "_population": <curve dict>,   # all-driver fit
+            "VER": <curve dict>,           # per-driver fits
+            "HAM": <curve dict>,
+            ...
+        }
+
+    Drivers with fewer than MIN_LAPS_FOR_FIT laps are omitted — callers
+    should fall back to ``_population`` via :func:`resolve_driver_curves`.
+
+    When *fit_per_driver* is False the return is the original flat
+    ``{compound: curve_dict}`` format.
     """
     if "lap_time_delta" not in laps_df.columns:
         laps_df = compute_delta(laps_df)
 
     curves: dict[str, dict] = {}
+    has_drivers = fit_per_driver and "driver" in laps_df.columns
+
     for compound in laps_df["compound"].unique():
+        # Population-level fit (all drivers pooled)
         try:
-            curves[compound] = fit_curve(laps_df, compound, weather_df=weather_df)
+            pop_curve = fit_curve(
+                laps_df, compound, weather_df=weather_df, circuit_name=circuit_name,
+            )
         except ValueError as exc:
             logger.warning("Skipping %s: %s", compound, exc)
+            continue
+
+        if not has_drivers:
+            curves[compound] = pop_curve
+            continue
+
+        compound_entry: dict[str, dict] = {"_population": pop_curve}
+        compound_laps = laps_df[laps_df["compound"] == compound]
+
+        for driver in compound_laps["driver"].unique():
+            driver_laps = laps_df[laps_df["driver"] == driver]
+            try:
+                d_curve = fit_curve(
+                    driver_laps, compound,
+                    weather_df=weather_df, circuit_name=circuit_name,
+                )
+                compound_entry[driver] = d_curve
+            except ValueError:
+                pass  # not enough laps — callers fall back to _population
+
+        curves[compound] = compound_entry
 
     return curves
+
+
+def resolve_driver_curves(
+    curves: dict[str, dict], driver: str | None = None,
+) -> dict[str, dict]:
+    """
+    Collapse per-driver curve structure into flat ``{compound: curve_dict}``.
+
+    If *driver* is given and that driver has a curve for a compound, it is
+    used; otherwise the ``_population`` curve is returned.  When the curves
+    dict is already in the flat (non-per-driver) format this is a no-op.
+    """
+    resolved: dict[str, dict] = {}
+    for compound, value in curves.items():
+        if isinstance(value, dict) and "_population" in value:
+            if driver and driver in value:
+                resolved[compound] = value[driver]
+            else:
+                resolved[compound] = value["_population"]
+        else:
+            resolved[compound] = value
+    return resolved
 
 
 def _compute_cliff_from_coeffs(coeffs: list[float] | None, threshold: float = 1.5) -> int:

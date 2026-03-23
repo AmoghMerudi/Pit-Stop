@@ -64,3 +64,46 @@ ROUND_TO_CIRCUIT: dict[tuple[int, int], str] = {
 def get_circuit_for_round(year: int, round_number: int) -> str | None:
     """Return the circuit location name for a given year/round, or None if unknown."""
     return ROUND_TO_CIRCUIT.get((year, round_number))
+
+
+# ---------------------------------------------------------------------------
+# Track evolution — early laps are unrepresentative due to rubber build-up
+# ---------------------------------------------------------------------------
+
+TRACK_EVOLUTION_OFFSET: dict[str, int] = {
+    "Bahrain": 6,
+    "Saudi Arabia": 4,
+    "Abu Dhabi": 4,
+    "Singapore": 3,
+    "Hungary": 3,
+    "default": 3,
+}
+
+
+def get_lap_offset(circuit_name: str) -> int:
+    """
+    Return the number of early-stint laps to discard for a circuit.
+    Uses case-insensitive partial matching against TRACK_EVOLUTION_OFFSET keys.
+    Falls back to "default" if no match is found.
+    """
+    lower = circuit_name.lower()
+    for key, value in TRACK_EVOLUTION_OFFSET.items():
+        if key == "default":
+            continue
+        if key.lower() in lower or lower in key.lower():
+            return value
+    return TRACK_EVOLUTION_OFFSET["default"]
+
+
+# ---------------------------------------------------------------------------
+# Maximum realistic stint length per compound (laps used for fitting)
+# ---------------------------------------------------------------------------
+
+MAX_FITTING_STINT: dict[str, int] = {
+    "SOFT": 18,
+    "MEDIUM": 30,
+    "HARD": 45,
+    "INTERMEDIATE": 30,
+    "WET": 30,
+    "default": 35,
+}
