@@ -24,14 +24,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Pitwall — F1 Strategy Optimizer")
 
-origins = [
-    "http://localhost:3000",
-    "https://pitwall-iota.vercel.app",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

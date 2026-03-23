@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_DIR = os.getenv("CACHE_DIR", "./cache")
 OPENF1_BASE_URL = os.getenv("OPENF1_BASE_URL", "https://api.openf1.org/v1")
-OPENF1_TIMEOUT = 5  # seconds
+OPENF1_TIMEOUT = 15  # seconds
 
 os.makedirs(CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(CACHE_DIR)
