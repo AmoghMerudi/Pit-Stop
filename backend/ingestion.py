@@ -52,7 +52,7 @@ def load_session(year: int, round_number: int) -> fastf1.core.Session:
             return _session_cache[key]
 
         session = fastf1.get_session(year, round_number, "R")
-        session.load()
+        session.load(telemetry=False)
 
         # Evict oldest if cache is full
         if len(_session_cache) >= _SESSION_CACHE_MAX:

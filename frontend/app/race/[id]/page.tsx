@@ -94,43 +94,38 @@ export default function RacePage({ params }: PageProps) {
 
     setActiveDriver(driver)
 
+    // Phase 1: critical data — render page as soon as these resolve
     Promise.all([
       getDegradation(year, round),
       getStrategy(year, round, driver),
-      getWeather(year, round),
-      getGapEvolution(year, round, driver),
-      getRaceControl(year, round),
-      getStints(year, round),
-      getPositions(year, round),
-      getLapTimes(year, round),
-      getPitStops(year, round),
-      getRaceSummary(year, round),
       getDrivers(year, round).catch(() => [] as DriverInfo[]),
     ])
-      .then(([degradationData, strategyData, weatherData, gapData, rcData, stintData, posData, ltData, psData, summaryData, driversData]) => {
+      .then(([degradationData, strategyData, driversData]) => {
         setCurves(degradationData)
         setStrategy(strategyData)
-        setWeather(weatherData)
-        setGaps(gapData)
-        setRaceControl(rcData)
-        setStints(stintData)
-        setPositions(posData)
-        setLapTimes(ltData)
-        setPitStops(psData)
-        setSummary(summaryData)
         setDriverInfo(driversData)
         const tl = strategyData.total_laps ?? strategyData.current_lap ?? 57
         const cl = strategyData.current_lap ?? tl
         setTotalLaps(tl)
         setSelectedLap(cl)
-        // Fetch sectors for the current lap
+        setLoading(false)
+
+        // Phase 2: secondary data — load in background after page is visible
         getSectors(year, round, cl).then(setSectors).catch(() => {})
+        getWeather(year, round).then(setWeather).catch(() => {})
+        getGapEvolution(year, round, driver).then(setGaps).catch(() => {})
+        getRaceControl(year, round).then(setRaceControl).catch(() => {})
+        getStints(year, round).then(setStints).catch(() => {})
+        getPositions(year, round).then(setPositions).catch(() => {})
+        getLapTimes(year, round).then(setLapTimes).catch(() => {})
+        getPitStops(year, round).then(setPitStops).catch(() => {})
+        getRaceSummary(year, round).then(setSummary).catch(() => {})
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "An unexpected error occurred"
         setError(message)
+        setLoading(false)
       })
-      .finally(() => setLoading(false))
   }, [id])
 
   function handleLapChange(e: React.ChangeEvent<HTMLInputElement>) {
