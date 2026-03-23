@@ -23,16 +23,32 @@ fastf1.Cache.enable_cache(CACHE_DIR)
 
 CURRENT_YEAR = date.today().year
 
+# In-memory session cache to avoid redundant loads when the race page
+# fires 12+ parallel requests for the same (year, round).
+_session_cache: dict[tuple[int, int], fastf1.core.Session] = {}
+_SESSION_CACHE_MAX = 3  # keep at most 3 sessions in memory
+
 
 def load_session(year: int, round_number: int) -> fastf1.core.Session:
-    """Load and return a FastF1 race session. Results are cached to disk."""
+    """Load and return a FastF1 race session. Results are cached in memory and on disk."""
     if year < 2018 or year > CURRENT_YEAR:
         raise ValueError(f"Year must be between 2018 and {CURRENT_YEAR}")
     if round_number < 1 or round_number > 24:
         raise ValueError("Round number must be between 1 and 24")
 
+    key = (year, round_number)
+    if key in _session_cache:
+        return _session_cache[key]
+
     session = fastf1.get_session(year, round_number, "R")
     session.load()
+
+    # Evict oldest if cache is full
+    if len(_session_cache) >= _SESSION_CACHE_MAX:
+        oldest = next(iter(_session_cache))
+        del _session_cache[oldest]
+
+    _session_cache[key] = session
     return session
 
 
