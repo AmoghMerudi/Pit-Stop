@@ -2,12 +2,14 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+import pandas as pd
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from benchmarks import load_baseline_curves
-from degradation import find_cliff_lap
+from degradation import bayesian_update, find_cliff_lap, fuel_correct_laptimes
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds
 from ingestion import CURRENT_YEAR, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
@@ -62,11 +64,27 @@ def get_degradation(year: int, round_number: int):
     try:
         session = load_session(year, round_number)
         laps = get_laps(session)
-        curves = fit_all_compounds(laps)
-        return [
-            DegradationCurve(compound=c, **v)
-            for c, v in curves.items()
-        ]
+        laps = fuel_correct_laptimes(laps)
+        try:
+            weather = get_weather_data(session)
+            weather_df = pd.DataFrame([w if isinstance(w, dict) else w.dict() for w in weather]) if weather else None
+        except Exception:
+            weather_df = None
+        curves = fit_all_compounds(laps, weather_df=weather_df)
+        result = []
+        for c, v in curves.items():
+            result.append(DegradationCurve(
+                compound=c,
+                slope=v.get("slope", 0.0),
+                intercept=v.get("intercept", 0.0),
+                r2=v.get("r2", 0.0),
+                coeffs=v.get("coeffs"),
+                degree=v.get("degree", 2),
+                cliff_lap=v.get("cliff_lap"),
+                temp_coefficient=v.get("temp_coefficient"),
+                type=v.get("type", "quadratic"),
+            ))
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except HTTPException:
@@ -82,6 +100,7 @@ def get_strategy(year: int, round_number: int, driver: str, lap: int | None = No
     try:
         session = load_session(year, round_number)
         laps = get_laps(session)
+        laps = fuel_correct_laptimes(laps)
         curves = fit_all_compounds(laps)
         max_lap = int(laps["lap_number"].max())
         total_laps = get_total_laps(session)
@@ -224,6 +243,7 @@ def what_if(year: int, round_number: int, driver: str, pit_lap: int = 1, new_com
     try:
         session = load_session(year, round_number)
         laps = get_laps(session)
+        laps = fuel_correct_laptimes(laps)
         curves = fit_all_compounds(laps)
         total_laps = get_total_laps(session)
         max_lap = int(laps["lap_number"].max())
@@ -339,6 +359,7 @@ def live_manual_strategy(body: ManualStrategyRequest):
             remaining_laps=remaining_laps,
             curve_source=curve_source,
             rival_count=rival_count,
+            degradation_confidence=0.0,
         )
 
     except ValueError as exc:
@@ -448,31 +469,44 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
                 if round is None:
                     round = 1  # fallback
 
-        # 1. Load degradation baseline
+        # 1. Load degradation baseline (prior race or benchmarks)
         curves, curve_source = load_baseline_curves(year, round)
 
         # 2. Fetch live rival data in parallel
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             f_stints = executor.submit(get_live_stints, "latest")
             f_positions = executor.submit(get_live_positions, "latest")
             f_intervals = executor.submit(get_live_intervals, "latest")
             f_drivers = executor.submit(get_live_drivers, "latest")
+            f_laps = executor.submit(get_live_laps)
             stints = f_stints.result()
             positions = f_positions.result()
             intervals = f_intervals.result()
             driver_mapping = f_drivers.result()
+            live_laps_raw = f_laps.result()
 
         if not stints:
             raise HTTPException(status_code=503, detail="Live timing unavailable — no stint data")
 
-        # 3. Build driver states
+        # 3. Bayesian update: refine prior curves with live lap data
+        degradation_confidence = 0.0
+        if live_laps_raw:
+            try:
+                live_df = pd.DataFrame(live_laps_raw)
+                if not live_df.empty and "lap_time" in live_df.columns:
+                    live_df = fuel_correct_laptimes(live_df)
+                    curves, degradation_confidence = bayesian_update(curves, live_df)
+            except Exception as exc:
+                logger.warning("Bayesian update failed: %s", exc)
+
+        # 4. Build driver states
         driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
         rival_count = len(driver_states)
 
         if driver not in driver_states:
             raise HTTPException(status_code=404, detail=f"Driver {driver} not found in live data")
 
-        # 4. Circuit + remaining laps
+        # 5. Circuit + remaining laps
         circuit_name = get_circuit_for_round(year, round)
 
         # Estimate remaining laps from stint data
@@ -484,7 +518,7 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
         total_laps = 57  # default
         remaining_laps = max(1, total_laps - max_lap) if max_lap > 0 else total_laps
 
-        # 5. Strategy recommendation
+        # 6. Strategy recommendation
         result = recommend(driver, driver_states, curves, circuit_name, remaining_laps)
 
         return LiveStrategyResponse(
@@ -492,6 +526,7 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
             remaining_laps=remaining_laps,
             curve_source=curve_source,
             rival_count=rival_count,
+            degradation_confidence=round(degradation_confidence, 2),
         )
 
     except HTTPException:

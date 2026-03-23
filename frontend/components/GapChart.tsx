@@ -52,9 +52,9 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
   const rcEvents = raceControl ?? []
 
   return (
-    <div className="p-4 border-b border-[#222]">
+    <div className="p-4 border-b border-[var(--border)]">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest">
+        <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">
           Gap Evolution
         </p>
         {rcEvents.length > 0 && (
@@ -65,13 +65,13 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
                   className="w-3 h-2 inline-block rounded-sm"
                   style={{ backgroundColor: RC_COLORS[type]?.fill ?? "#555", opacity: 0.3 }}
                 />
-                <span className="text-[9px] text-[#555]">{RC_COLORS[type]?.label ?? type}</span>
+                <span className="text-[9px] text-[var(--text-muted)]">{RC_COLORS[type]?.label ?? type}</span>
               </div>
             ))}
           </div>
         )}
       </div>
-      <p className="text-[9px] text-[#444] mb-3">
+      <p className="text-[9px] text-[var(--text-muted)] mb-3">
         vs {driver} — positive = {driver} ahead
       </p>
       <ResponsiveContainer width="100%" height={280}>

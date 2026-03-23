@@ -11,6 +11,7 @@
   --text-secondary: #888;
   --text-muted: #555;
   --text-dim: #333;
+  --text-section: #999;
   --error-bg: #1a0a0a;
 }
 
@@ -25,6 +26,7 @@
   --text-secondary: #555;
   --text-muted: #888;
   --text-dim: #bbb;
+  --text-section: #666;
   --error-bg: #fff0f0;
 }
 

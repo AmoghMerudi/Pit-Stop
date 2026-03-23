@@ -18,7 +18,7 @@ export default function PitCountdown({ crossoverLap, recommendPit, reason }: Pit
   const status = getStatus(crossoverLap, recommendPit)
 
   return (
-    <div className="p-4 border-b border-[#222]">
+    <div className="p-4 border-b border-[var(--border)]">
       <div className="flex items-center gap-3 mb-2">
         <span
           className={`inline-block w-3 h-3 rounded-full ${status.color} ${status.pulse ? "animate-pulse" : ""}`}
@@ -27,13 +27,13 @@ export default function PitCountdown({ crossoverLap, recommendPit, reason }: Pit
           {status.label}
         </span>
         {crossoverLap > 0 && crossoverLap < 999 && (
-          <span className="text-white font-mono font-bold text-lg ml-auto">
+          <span className="text-[var(--text-primary)] font-mono font-bold text-lg ml-auto">
             {crossoverLap}
-            <span className="text-[#555] text-xs font-normal ml-1">laps</span>
+            <span className="text-[var(--text-muted)] text-xs font-normal ml-1">laps</span>
           </span>
         )}
       </div>
-      <p className="text-sm text-[#888]">{reason}</p>
+      <p className="text-sm text-[var(--text-muted)]">{reason}</p>
     </div>
   )
 }

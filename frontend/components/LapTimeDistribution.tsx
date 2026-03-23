@@ -21,14 +21,14 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
   }
 
   return (
-    <div className="p-4 border-b border-[#222]">
-      <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-3">
+    <div className="p-4 border-b border-[var(--border)]">
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Lap Time Distribution
       </p>
 
       {/* Scale */}
       <div className="flex items-center mb-1 ml-12">
-        <div className="flex-1 flex justify-between text-[9px] text-[#555] font-mono">
+        <div className="flex-1 flex justify-between text-[9px] text-[var(--text-muted)] font-mono">
           <span>{globalMin.toFixed(1)}s</span>
           <span>{((globalMin + globalMax) / 2).toFixed(1)}s</span>
           <span>{globalMax.toFixed(1)}s</span>
@@ -52,7 +52,7 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
             >
               <span
                 className={`text-[10px] font-mono w-10 text-right shrink-0 transition-colors ${
-                  isHighlighted ? "text-white font-bold" : "text-[#888]"
+                  isHighlighted ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-muted)]"
                 }`}
               >
                 {stat.driver}
@@ -74,16 +74,16 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
                 />
                 {/* IQR box */}
                 <div
-                  className={`absolute top-0.5 bottom-0.5 rounded-sm ${isHighlighted ? "bg-[#e8002d]/60" : "bg-[#333]"}`}
+                  className={`absolute top-0.5 bottom-0.5 rounded-sm ${isHighlighted ? "bg-[#e8002d]/60" : "bg-[var(--border)]"}`}
                   style={{ left: `${boxLeft}%`, width: `${boxWidth}%` }}
                 />
                 {/* Median line */}
                 <div
-                  className={`absolute top-0 bottom-0 w-0.5 ${isHighlighted ? "bg-white" : "bg-[#888]"}`}
+                  className={`absolute top-0 bottom-0 w-0.5 ${isHighlighted ? "bg-[var(--text-primary)]" : "bg-[var(--text-muted)]"}`}
                   style={{ left: `${medianPos}%` }}
                 />
               </div>
-              <span className="text-[9px] font-mono text-[#555] w-14 text-right shrink-0">
+              <span className="text-[9px] font-mono text-[var(--text-muted)] w-14 text-right shrink-0">
                 {stat.median.toFixed(2)}s
               </span>
             </div>
@@ -91,7 +91,7 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
         })}
       </div>
 
-      <p className="text-[9px] text-[#333] mt-2 ml-12">
+      <p className="text-[9px] text-[var(--text-muted)] mt-2 ml-12">
         Box: Q1–Q3 · Line: median · Whiskers: 1.5×IQR · Excludes pit/SC laps
       </p>
     </div>

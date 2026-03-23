@@ -164,22 +164,22 @@ export default function H2HPage({ params }: PageProps) {
         {driverState && (
           <div className="px-3 py-2 border-b border-[var(--border)] grid grid-cols-2 gap-2">
             <div>
-              <p className="text-[8px] text-[var(--text-muted)] uppercase">Position</p>
+              <p className="text-[8px] text-[var(--text-section)] uppercase">Position</p>
               <p className="text-[var(--text-primary)] font-mono font-bold">P{driverState.position}</p>
             </div>
             <div>
-              <p className="text-[8px] text-[var(--text-muted)] uppercase">Compound</p>
+              <p className="text-[8px] text-[var(--text-section)] uppercase">Compound</p>
               <div className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COMPOUND_HEX[driverState.compound] ?? "#555" }} />
                 <p className="text-[var(--text-primary)] font-mono font-bold text-sm">{driverState.compound}</p>
               </div>
             </div>
             <div>
-              <p className="text-[8px] text-[var(--text-muted)] uppercase">Tyre Age</p>
+              <p className="text-[8px] text-[var(--text-section)] uppercase">Tyre Age</p>
               <p className="text-[var(--text-primary)] font-mono font-bold">{driverState.tyre_age}L</p>
             </div>
             <div>
-              <p className="text-[8px] text-[var(--text-muted)] uppercase">Gap</p>
+              <p className="text-[8px] text-[var(--text-section)] uppercase">Gap</p>
               <p className="text-[var(--text-primary)] font-mono font-bold">
                 {driverState.position === 1 ? "LEAD" : `+${driverState.gap_to_leader.toFixed(1)}s`}
               </p>
@@ -199,7 +199,7 @@ export default function H2HPage({ params }: PageProps) {
         {/* Threats */}
         {s.undercut_threats.length > 0 && (
           <div className="px-3 py-2 border-b border-[var(--border)]">
-            <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1">Threats</p>
+            <p className="text-[9px] text-[var(--text-section)] uppercase tracking-wider mb-1">Threats</p>
             {s.undercut_threats.slice(0, 3).map((t) => (
               <div key={t.driver} className="flex items-center gap-2 text-[10px] border-l-2 border-l-[#e8002d] pl-1.5 py-0.5">
                 <span className="text-[var(--text-primary)] font-mono font-bold">{t.driver}</span>
@@ -247,7 +247,7 @@ export default function H2HPage({ params }: PageProps) {
       {/* Lap slider */}
       {selectedLap !== null && totalLaps > 0 && (
         <div className="px-4 py-2 border-b border-[var(--border)] flex items-center gap-4 shrink-0">
-          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">Lap</span>
+          <span className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">Lap</span>
           <input
             type="range"
             min={1}

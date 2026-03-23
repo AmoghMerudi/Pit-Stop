@@ -24,6 +24,11 @@ PIT_LANE_LOSS: dict[str, float] = {
 
 COMPOUNDS = {"SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"}
 
+# Fuel correction: F1 cars carry ~110kg of fuel, each kg adds ~0.03s per lap
+FUEL_LOAD_KG = 110.0
+FUEL_EFFECT_PER_LAP_KG = 0.03  # seconds slower per kg of fuel
+FUEL_CONSUMPTION_KG_PER_LAP = 1.8  # approximate kg burned per lap
+
 # Maps (year, round_number) -> circuit location name matching PIT_LANE_LOSS keys.
 # Used by the live strategy endpoint to determine pit loss without loading a FastF1 session.
 ROUND_TO_CIRCUIT: dict[tuple[int, int], str] = {

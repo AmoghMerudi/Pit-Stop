@@ -17,10 +17,10 @@ export default function RaceSummary({ summary }: RaceSummaryProps) {
         onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[var(--surface-raised)] transition-colors"
       >
-        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">
+        <span className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">
           Race Summary
         </span>
-        <span className="text-[var(--text-dim)] text-xs">{expanded ? "\u2212" : "+"}</span>
+        <span className="text-[var(--text-muted)] text-xs">{expanded ? "\u2212" : "+"}</span>
       </button>
 
       {expanded && (
@@ -88,7 +88,7 @@ export default function RaceSummary({ summary }: RaceSummaryProps) {
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-[var(--surface-raised)] border border-[var(--border)] px-3 py-2">
-      <p className="text-[8px] text-[var(--text-muted)] uppercase tracking-wider">{label}</p>
+      <p className="text-[8px] text-[var(--text-section)] uppercase tracking-wider">{label}</p>
       <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{value}</p>
     </div>
   )
@@ -107,7 +107,7 @@ function Highlight({
 }) {
   return (
     <div className="flex items-center gap-2 text-xs border-l-2 pl-2 py-1" style={{ borderColor: accent }}>
-      <span className="text-[var(--text-muted)] text-[9px] uppercase w-24 shrink-0">{label}</span>
+      <span className="text-[var(--text-section)] text-[9px] uppercase w-24 shrink-0">{label}</span>
       <span className="text-[var(--text-primary)] font-mono">{content}</span>
       {compound && (
         <span

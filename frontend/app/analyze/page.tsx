@@ -77,7 +77,7 @@ export default function AnalyzePage() {
 
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
           <div>
-            <label htmlFor="year" className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">
+            <label htmlFor="year" className="block text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-1">
               Season
             </label>
             <select
@@ -97,7 +97,7 @@ export default function AnalyzePage() {
           </div>
 
           <div>
-            <label htmlFor="round" className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">
+            <label htmlFor="round" className="block text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-1">
               Grand Prix
             </label>
             {loadingSchedule ? (
@@ -122,7 +122,7 @@ export default function AnalyzePage() {
           </div>
 
           <div>
-            <label htmlFor="driver" className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">
+            <label htmlFor="driver" className="block text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-1">
               Driver Code
             </label>
             <input
@@ -133,7 +133,7 @@ export default function AnalyzePage() {
               onChange={(e) => setDriver(e.target.value.toUpperCase())}
               placeholder="VER"
               required
-              className={`${INPUT_CLASS} uppercase placeholder:normal-case placeholder:text-[var(--text-dim)]`}
+              className={`${INPUT_CLASS} uppercase placeholder:normal-case placeholder:text-[var(--text-muted)]`}
             />
           </div>
 
@@ -147,7 +147,7 @@ export default function AnalyzePage() {
           </button>
         </form>
 
-        <p className="text-[var(--text-dim)] text-[10px] uppercase tracking-widest mt-6">
+        <p className="text-[var(--text-section)] text-[10px] uppercase tracking-widest mt-6">
           Supports all races from 2018 to {new Date().getFullYear()}
         </p>
       </section>

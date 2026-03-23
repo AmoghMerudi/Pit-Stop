@@ -12,6 +12,9 @@ class DegradationCurve(BaseModel):
     r2: float
     coeffs: list[float] | None = None
     degree: int = 1
+    cliff_lap: int | None = None
+    temp_coefficient: float | None = None
+    type: str = "quadratic"  # "quadratic" or "piecewise"
 
 
 class PitWindowResult(BaseModel):
@@ -194,3 +197,4 @@ class LiveStrategyResponse(BaseModel):
     remaining_laps: int = 20
     curve_source: str   # "prior_race:2026/3" or "benchmark"
     rival_count: int    # number of rivals found in live OpenF1 data
+    degradation_confidence: float = 0.0  # 0.0-1.0, from Bayesian updating

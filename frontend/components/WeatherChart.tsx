@@ -37,8 +37,8 @@ export default function WeatherChart({ data, currentLap }: Props) {
   }
 
   return (
-    <div className="p-4 border-b border-[#222]">
-      <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-3">
+    <div className="p-4 border-b border-[var(--border)]">
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Weather Conditions
       </p>
       <ResponsiveContainer width="100%" height={180}>
@@ -110,16 +110,16 @@ export default function WeatherChart({ data, currentLap }: Props) {
       <div className="flex items-center gap-4 mt-2 px-1">
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 bg-[#f97316] inline-block" />
-          <span className="text-[10px] text-[#666]">Track</span>
+          <span className="text-[10px] text-[var(--text-muted)]">Track</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 bg-[#06b6d4] inline-block" />
-          <span className="text-[10px] text-[#666]">Air</span>
+          <span className="text-[10px] text-[var(--text-muted)]">Air</span>
         </div>
         {rainRanges.length > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-2 bg-[#3b82f6]/20 inline-block" />
-            <span className="text-[10px] text-[#666]">Rain</span>
+            <span className="text-[10px] text-[var(--text-muted)]">Rain</span>
           </div>
         )}
       </div>

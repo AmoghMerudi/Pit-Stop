@@ -28,12 +28,12 @@ export default function PitWindowTimeline({
   const showOptimal = optimalLap > 0 && optimalLap < 999
 
   return (
-    <div className="px-4 py-3 border-b border-[#222]">
-      <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-2">
+    <div className="px-4 py-3 border-b border-[var(--border)]">
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
         Pit Window
       </p>
 
-      <div className="relative h-8 bg-[#111] rounded-sm overflow-hidden">
+      <div className="relative h-8 bg-[var(--surface-raised)] rounded-sm overflow-hidden">
         {/* Undercut zone (green) */}
         {undercutStart !== null && undercutEnd !== null && (
           <div
@@ -62,7 +62,7 @@ export default function PitWindowTimeline({
             className="absolute top-0 bottom-0 w-0.5 bg-white/70"
             style={{ left: `${toPercent(optimalLap)}%` }}
           >
-            <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] text-white font-mono whitespace-nowrap">
+            <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] text-[var(--text-primary)] font-mono whitespace-nowrap">
               OPT L{optimalLap}
             </span>
           </div>
@@ -91,20 +91,20 @@ export default function PitWindowTimeline({
       <div className="flex items-center gap-4 mt-3">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-2 bg-[#22c55e]/20 border border-[#22c55e]/40 rounded-sm" />
-          <span className="text-[9px] text-[#555]">Undercut</span>
+          <span className="text-[9px] text-[var(--text-muted)]">Undercut</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-2 bg-[#f59e0b]/15 border border-[#f59e0b]/40 rounded-sm" />
-          <span className="text-[9px] text-[#555]">Overcut</span>
+          <span className="text-[9px] text-[var(--text-muted)]">Overcut</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-0.5 bg-[#e8002d]" />
-          <span className="text-[9px] text-[#555]">Current</span>
+          <span className="text-[9px] text-[var(--text-muted)]">Current</span>
         </div>
         {showOptimal && (
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-0.5 bg-white/70" />
-            <span className="text-[9px] text-[#555]">Optimal</span>
+            <span className="text-[9px] text-[var(--text-muted)]">Optimal</span>
           </div>
         )}
       </div>

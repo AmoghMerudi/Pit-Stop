@@ -69,7 +69,7 @@ export default function LiveTicker() {
   const { session, currentLap, totalLaps, compound, stintLap } = data
 
   return (
-    <div className="bg-[#0a0a0a] border-b border-[#222] px-6 py-2.5 flex items-center justify-between">
+    <div className="bg-[var(--surface)] border-b border-[var(--border)] px-6 py-2.5 flex items-center justify-between">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[#39b54a] animate-pulse" />
@@ -77,14 +77,14 @@ export default function LiveTicker() {
             Live: {session.circuit ?? session.country ?? "Active"}
           </span>
         </div>
-        <span className="text-[#333] text-[10px]">|</span>
-        <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">
+        <span className="text-[var(--text-muted)] text-[10px]">|</span>
+        <span className="text-[var(--text-section)] text-[10px] uppercase tracking-widest font-mono">
           {session.session_type ?? "Race"}
         </span>
         {currentLap > 0 && (
           <>
-            <span className="text-[#333] text-[10px]">|</span>
-            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">
+            <span className="text-[var(--text-muted)] text-[10px]">|</span>
+            <span className="text-[var(--text-section)] text-[10px] uppercase tracking-widest font-mono">
               LAP {currentLap} / {totalLaps}
             </span>
           </>
@@ -98,8 +98,8 @@ export default function LiveTicker() {
         )}
         {session.year && session.round && (
           <>
-            <span className="text-[#333] text-[10px]">|</span>
-            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">
+            <span className="text-[var(--text-muted)] text-[10px]">|</span>
+            <span className="text-[var(--text-section)] text-[10px] uppercase tracking-widest font-mono">
               {session.year} R{session.round}
             </span>
           </>

@@ -25,14 +25,14 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
   const drivers = Array.from(driverStints.keys()).sort()
 
   return (
-    <div className="p-4 border-b border-[#222]">
-      <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-3">
+    <div className="p-4 border-b border-[var(--border)]">
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Tyre Strategy Timeline
       </p>
 
       {/* Lap scale */}
       <div className="flex items-center mb-1 ml-12">
-        <div className="flex-1 flex justify-between text-[9px] text-[#555] font-mono">
+        <div className="flex-1 flex justify-between text-[9px] text-[var(--text-muted)] font-mono">
           <span>L1</span>
           <span>L{Math.round(totalLaps / 4)}</span>
           <span>L{Math.round(totalLaps / 2)}</span>
@@ -52,12 +52,12 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
             >
               <span
                 className={`text-[10px] font-mono w-10 text-right shrink-0 transition-colors ${
-                  driver === highlightDriver ? "text-[var(--text-primary)] font-bold" : "text-[#888]"
+                  driver === highlightDriver ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-muted)]"
                 }`}
               >
                 {driver}
               </span>
-              <div className="flex-1 flex h-5 bg-[#111] rounded-sm overflow-hidden">
+              <div className="flex-1 flex h-5 bg-[var(--surface-raised)] rounded-sm overflow-hidden">
                 {driverStintList.map((stint) => {
                   const width = ((stint.lap_end - stint.lap_start + 1) / totalLaps) * 100
                   const left = ((stint.lap_start - 1) / totalLaps) * 100
@@ -75,7 +75,7 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
                     >
                       {/* Tooltip */}
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10">
-                        <div className="bg-[#1a1a1a] border border-[#333] px-2 py-1 text-[9px] font-mono text-white whitespace-nowrap rounded">
+                        <div className="bg-[var(--surface-raised)] border border-[var(--border)] px-2 py-1 text-[9px] font-mono text-[var(--text-primary)] whitespace-nowrap rounded">
                           {stint.compound} · L{stint.lap_start}–L{stint.lap_end} ({stint.lap_end - stint.lap_start + 1} laps)
                         </div>
                       </div>
@@ -96,7 +96,7 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
               className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: COMPOUND_HEX[c] }}
             />
-            <span className="text-[9px] text-[#555]">{c[0]}</span>
+            <span className="text-[9px] text-[var(--text-muted)]">{c[0]}</span>
           </div>
         ))}
       </div>

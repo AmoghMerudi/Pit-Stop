@@ -34,6 +34,6 @@ export default function LiveSessionBadge() {
       Live
     </span>
   ) : (
-    <span className="text-[#555] text-xs">No live session</span>
+    <span className="text-[var(--text-muted)] text-xs">No live session</span>
   )
 }

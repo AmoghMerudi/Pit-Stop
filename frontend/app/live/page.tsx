@@ -232,7 +232,7 @@ export default function LivePage() {
 
       {/* Driver grid */}
       <div className="border-b border-[var(--border)] px-4 py-3 shrink-0">
-        <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
+        <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
           Select Driver
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -321,7 +321,7 @@ export default function LivePage() {
           {/* Tyre life prediction */}
           {driverPrediction && (
             <div className="px-4 py-3 border-b border-[var(--border)]">
-              <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
+              <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
                 Tyre Life Prediction
               </p>
               <div className="flex items-center gap-4">
@@ -380,7 +380,7 @@ export default function LivePage() {
           {/* Undercut threats */}
           {result.undercut_threats.length > 0 && (
             <div className="p-4 border-b border-[var(--border)]">
-              <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
+              <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
                 Undercut Threats
               </p>
               <div className="space-y-1">

@@ -46,7 +46,7 @@ function buildChartData(curves: DegradationCurve[], maxAge: number) {
 export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }: Props) {
   if (!curves.length) {
     return (
-      <div className="flex items-center justify-center h-48 text-[#555] text-xs">
+      <div className="flex items-center justify-center h-48 text-[var(--text-muted)] text-xs">
         No degradation data
       </div>
     )
@@ -55,9 +55,9 @@ export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }
   const data = buildChartData(curves, maxAge)
 
   return (
-    <div className="p-4 border-b border-[#222]">
+    <div className="p-4 border-b border-[var(--border)]">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest">
+        <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">
           Tyre Degradation
         </p>
         {/* Custom legend with R² */}
@@ -68,8 +68,8 @@ export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }
                 className="inline-block w-2 h-2 rounded-full"
                 style={{ backgroundColor: COMPOUND_HEX[curve.compound] ?? "#888" }}
               />
-              <span className="text-[#888] font-medium">{curve.compound}</span>
-              <span className="font-mono text-[#555]">
+              <span className="text-[var(--text-muted)] font-medium">{curve.compound}</span>
+              <span className="font-mono text-[var(--text-muted)]">
                 {curve.r2 > 0 ? `r\u00B2=${curve.r2.toFixed(2)}` : ""}
               </span>
             </div>

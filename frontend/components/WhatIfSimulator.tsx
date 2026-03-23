@@ -48,7 +48,7 @@ export default function WhatIfSimulator({
         onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[var(--surface-raised)] transition-colors"
       >
-        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest">
+        <span className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">
           What-If Simulator
         </span>
         <span className="text-[var(--text-dim)] text-xs">{expanded ? "−" : "+"}</span>
@@ -60,7 +60,7 @@ export default function WhatIfSimulator({
           <div className="flex items-end gap-3">
             {/* Pit lap input */}
             <div className="flex-1">
-              <label className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
+              <label className="block text-[9px] text-[var(--text-section)] uppercase tracking-wider mb-1">
                 Pit on Lap
               </label>
               <input
@@ -83,7 +83,7 @@ export default function WhatIfSimulator({
 
             {/* Compound selector */}
             <div>
-              <label className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
+              <label className="block text-[9px] text-[var(--text-section)] uppercase tracking-wider mb-1">
                 Switch to
               </label>
               <div className="flex gap-1">

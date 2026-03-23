@@ -53,7 +53,7 @@ export default function ShareExport({ dashboardRef }: ShareExportProps) {
     <div className="flex items-center gap-1.5">
       <button
         onClick={handleCopyLink}
-        className="px-2 py-1 text-[10px] font-mono text-[#555] hover:text-white border border-[#222] hover:border-[#555] transition-colors"
+        className="px-2 py-1 text-[10px] font-mono text-[var(--text-dim)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors"
         title="Copy link to clipboard"
       >
         {copied ? "Copied!" : "Share"}
@@ -61,7 +61,7 @@ export default function ShareExport({ dashboardRef }: ShareExportProps) {
       <button
         onClick={handleExport}
         disabled={exporting}
-        className="px-2 py-1 text-[10px] font-mono text-[#555] hover:text-white border border-[#222] hover:border-[#555] transition-colors disabled:opacity-30"
+        className="px-2 py-1 text-[10px] font-mono text-[var(--text-dim)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors disabled:opacity-30"
         title="Export dashboard as PNG"
       >
         {exporting ? "..." : "Export"}

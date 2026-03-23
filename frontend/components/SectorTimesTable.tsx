@@ -19,7 +19,7 @@ function formatSector(val: number | null): string {
 export default function SectorTimesTable({ sectors, selectedDriver }: Props) {
   if (!sectors.length) {
     return (
-      <div className="flex items-center justify-center h-24 text-[#555] text-xs">
+      <div className="flex items-center justify-center h-24 text-[var(--text-muted)] text-xs">
         No sector data
       </div>
     )
@@ -33,11 +33,11 @@ export default function SectorTimesTable({ sectors, selectedDriver }: Props) {
   })
 
   return (
-    <div className="p-4 border-b border-[#222]">
-      <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-3">
+    <div className="p-4 border-b border-[var(--border)]">
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Sector Analysis
       </p>
-      <div className="grid grid-cols-[40px_48px_1fr_1fr_1fr_64px] gap-1 text-[10px] text-[#444] uppercase tracking-wider font-medium mb-1 px-1">
+      <div className="grid grid-cols-[40px_48px_1fr_1fr_1fr_64px] gap-1 text-[10px] text-[var(--text-section)] uppercase tracking-wider font-medium mb-1 px-1">
         <span>P</span>
         <span>DRV</span>
         <span>S1</span>
@@ -57,8 +57,8 @@ export default function SectorTimesTable({ sectors, selectedDriver }: Props) {
             className={`grid grid-cols-[40px_48px_1fr_1fr_1fr_64px] gap-1 items-center px-1 py-0.5
               ${isSelected ? "bg-[#e8002d]/8 border-l-2 border-l-[#e8002d]" : "border-l-2 border-l-transparent"}`}
           >
-            <span className="text-xs font-mono text-[#555]">{i + 1}</span>
-            <span className={`text-xs font-mono font-bold ${isSelected ? "text-[#e8002d]" : "text-white"}`}>
+            <span className="text-xs font-mono text-[var(--text-muted)]">{i + 1}</span>
+            <span className={`text-xs font-mono font-bold ${isSelected ? "text-[#e8002d]" : "text-[var(--text-primary)]"}`}>
               {s.driver}
             </span>
             <span className="text-xs font-mono font-bold" style={{ color: SECTOR_COLORS[s.s1_color] }}>
@@ -70,7 +70,7 @@ export default function SectorTimesTable({ sectors, selectedDriver }: Props) {
             <span className="text-xs font-mono font-bold" style={{ color: SECTOR_COLORS[s.s3_color] }}>
               {formatSector(s.s3)}
             </span>
-            <span className="text-xs font-mono text-[#888] text-right">{total}</span>
+            <span className="text-xs font-mono text-[var(--text-muted)] text-right">{total}</span>
           </div>
         )
       })}

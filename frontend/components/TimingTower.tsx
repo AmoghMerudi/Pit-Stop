@@ -39,15 +39,15 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
   const threatSet = new Set(threats)
 
   return (
-    <div className="h-full border-r border-[#222] overflow-y-auto">
-      <div className="p-3 border-b border-[#222]">
-        <p className="text-xs font-medium text-[#555] uppercase tracking-widest">
+    <div className="h-full border-r border-[var(--border)] overflow-y-auto">
+      <div className="p-3 border-b border-[var(--border)]">
+        <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest">
           Timing Tower
         </p>
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1.5 text-xs text-[#444] uppercase tracking-wider font-medium border-b border-[#222]">
+      <div className="grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1.5 text-xs text-[var(--text-section)] uppercase tracking-wider font-medium border-b border-[var(--border)]">
         <span>P</span>
         <span>DRV</span>
         <span>GAP</span>
@@ -68,22 +68,22 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
             onClick={() => onSelectDriver?.(d.driver)}
             className={`
               grid grid-cols-[28px_48px_60px_16px_36px] gap-1 px-3 py-1 items-center relative
-              border-b border-[#1a1a1a]
-              ${onSelectDriver ? "cursor-pointer hover:bg-[#1a1a1a]" : ""}
+              border-b border-[var(--border)]
+              ${onSelectDriver ? "cursor-pointer hover:bg-[var(--surface-raised)]" : ""}
               ${isThreat && !isOut ? "border-l-2 border-l-[#e8002d]" : "border-l-2 border-l-transparent"}
               ${isSelected ? "bg-[#e8002d]/8" : ""}
               ${isOut ? "opacity-40" : ""}
             `}
           >
             {/* Position */}
-            <span className="text-sm font-mono text-[#555]">
+            <span className="text-sm font-mono text-[var(--text-muted)]">
               {isOut ? "—" : d.position}
             </span>
 
             {/* Driver code */}
             <span
               className={`text-sm font-mono font-bold ${
-                isSelected ? "text-[#e8002d]" : "text-white"
+                isSelected ? "text-[#e8002d]" : "text-[var(--text-primary)]"
               }`}
             >
               {d.driver}
@@ -98,7 +98,7 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
                 {statusInfo.text}
               </span>
             ) : (
-              <span className="text-sm font-mono text-[#666] truncate">
+              <span className="text-sm font-mono text-[var(--text-muted)] truncate">
                 {formatGap(d.gap_to_leader, d.position)}
               </span>
             )}
@@ -112,7 +112,7 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
             {/* Tyre age */}
             <span
               className={`text-sm font-mono ${
-                !isOut && d.tyre_age > 20 ? "text-white font-bold" : "text-[#666]"
+                !isOut && d.tyre_age > 20 ? "text-[var(--text-primary)] font-bold" : "text-[var(--text-muted)]"
               }`}
             >
               {isOut ? "—" : d.tyre_age}
@@ -122,7 +122,7 @@ export default function TimingTower({ drivers, selectedDriver, threats, onSelect
       })}
 
       {sorted.length === 0 && (
-        <div className="px-3 py-4 text-sm text-[#555]">No driver data</div>
+        <div className="px-3 py-4 text-sm text-[var(--text-muted)]">No driver data</div>
       )}
     </div>
   )

@@ -68,8 +68,8 @@ export default function PositionChart({ data, highlightDriver, raceControl, curr
   })
 
   return (
-    <div className="p-4 border-b border-[#222]">
-      <p className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-3">
+    <div className="p-4 border-b border-[var(--border)]">
+      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Position Changes
       </p>
       <ResponsiveContainer width="100%" height={320}>

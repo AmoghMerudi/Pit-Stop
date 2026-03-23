@@ -233,7 +233,7 @@ export default function RacePage({ params }: PageProps) {
           <p className="text-[var(--text-secondary)] text-xs font-mono tracking-wider uppercase">
             Loading race data
           </p>
-          <p className="text-[var(--text-dim)] text-[10px]">
+          <p className="text-[var(--text-muted)] text-[10px]">
             This may take a moment if the session is not cached
           </p>
         </div>
@@ -283,7 +283,7 @@ export default function RacePage({ params }: PageProps) {
             {/* Lap Slider */}
             {totalLaps > 0 && selectedLap !== null && (
               <div className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-4">
-                <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest shrink-0">
+                <span className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest shrink-0">
                   Lap
                 </span>
                 <input
@@ -352,7 +352,7 @@ export default function RacePage({ params }: PageProps) {
             {/* Undercut threats */}
             {strategy.undercut_threats.length > 0 && (
               <div className="p-4 border-b border-[var(--border)]">
-                <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
+                <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
                   Undercut Threats
                 </p>
                 <div className="space-y-1">
@@ -384,16 +384,16 @@ export default function RacePage({ params }: PageProps) {
             {/* Driver state summary */}
             {selectedDriverState && (
               <div className="p-4 border-b border-[var(--border)]">
-                <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
+                <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
                   Driver State at Lap {selectedLap}
                 </p>
                 <div className="grid grid-cols-4 gap-4">
                   <div>
-                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Position</p>
+                    <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Position</p>
                     <p className="text-[var(--text-primary)] font-mono font-bold text-lg">P{selectedDriverState.position}</p>
                   </div>
                   <div>
-                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Compound</p>
+                    <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Compound</p>
                     <div className="flex items-center gap-2">
                       <span
                         className="inline-block w-2.5 h-2.5 rounded-full"
@@ -403,11 +403,11 @@ export default function RacePage({ params }: PageProps) {
                     </div>
                   </div>
                   <div>
-                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Tyre Age</p>
+                    <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Tyre Age</p>
                     <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{selectedDriverState.tyre_age} laps</p>
                   </div>
                   <div>
-                    <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Gap to Leader</p>
+                    <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Gap to Leader</p>
                     <p className="text-[var(--text-primary)] font-mono font-bold text-lg">
                       {selectedDriverState.gap_to_leader === 0 ? "LEADER" : `+${selectedDriverState.gap_to_leader.toFixed(1)}s`}
                     </p>
@@ -418,16 +418,16 @@ export default function RacePage({ params }: PageProps) {
 
             {/* Strategy summary */}
             <div className="p-4 border-b border-[var(--border)]">
-              <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-widest mb-2">
+              <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
                 Strategy Summary
               </p>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Remaining</p>
+                  <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Remaining</p>
                   <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{strategy.remaining_laps} laps</p>
                 </div>
                 <div>
-                  <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Best Alternative</p>
+                  <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Best Alternative</p>
                   <div className="flex items-center gap-2">
                     {strategy.best_alt && (
                       <span
@@ -439,7 +439,7 @@ export default function RacePage({ params }: PageProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[var(--text-muted)] text-[10px] uppercase mb-0.5">Rivals on Track</p>
+                  <p className="text-[var(--text-section)] text-[10px] uppercase mb-0.5">Rivals on Track</p>
                   <p className="text-[var(--text-primary)] font-mono font-bold text-lg">{strategy.all_drivers.length}</p>
                 </div>
               </div>
