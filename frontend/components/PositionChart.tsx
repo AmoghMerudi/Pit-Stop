@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from "recharts"
 import type { PositionHistoryPoint, RaceControlEvent } from "@/lib/api"
+import ChartFullScreen from "./ChartFullScreen"
 
 const DRIVER_COLORS: Record<string, string> = {
   VER: "#3671C6", PER: "#3671C6",
@@ -68,30 +69,32 @@ export default function PositionChart({ data, highlightDriver, raceControl, curr
   })
 
   return (
-    <div className="p-4 border-b border-[var(--border)]">
-      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
+    <ChartFullScreen title="Position Changes">
+      {(isFullScreen) => (
+    <div className={`p-4 ${isFullScreen ? "" : "border-b border-[var(--border)]"} ${isFullScreen ? "h-full flex flex-col" : ""}`}>
+      <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Position Changes
       </p>
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={isFullScreen ? "100%" : 320} className={isFullScreen ? "flex-1 min-h-0" : ""}>
         <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid stroke="#1a1a1a" strokeDasharray="3 3" />
+          <CartesianGrid stroke="var(--border)" strokeOpacity={0.6} strokeDasharray="3 3" />
           <XAxis
             dataKey="lap"
-            stroke="#333"
-            tick={{ fill: "#555", fontSize: 10 }}
-            label={{ value: "Lap", position: "insideBottomRight", fill: "#555", fontSize: 10, offset: -5 }}
+            stroke="var(--text-muted)"
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            label={{ value: "Lap", position: "insideBottomRight", fill: "var(--text-secondary)", fontSize: 11, offset: -5 }}
           />
           <YAxis
             reversed
             domain={[1, Math.max(20, drivers.length)]}
-            stroke="#333"
-            tick={{ fill: "#555", fontSize: 10 }}
-            label={{ value: "Position", angle: -90, position: "insideLeft", fill: "#555", fontSize: 10 }}
+            stroke="var(--text-muted)"
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            label={{ value: "Position", angle: -90, position: "insideLeft", fill: "var(--text-secondary)", fontSize: 11 }}
             allowDecimals={false}
           />
           <Tooltip
-            contentStyle={{ backgroundColor: "#111", border: "1px solid #333", borderRadius: 4, fontSize: 11 }}
-            labelStyle={{ color: "#888" }}
+            contentStyle={{ backgroundColor: "var(--surface-raised)", border: "1px solid var(--border-hover)", borderRadius: 6, fontSize: 12, padding: "8px 12px" }}
+            labelStyle={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: 4 }}
             labelFormatter={(label) => `Lap ${label}`}
             formatter={(value, name) => [`P${Number(value)}`, String(name)]}
           />
@@ -163,5 +166,7 @@ export default function PositionChart({ data, highlightDriver, raceControl, curr
         </div>
       )}
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

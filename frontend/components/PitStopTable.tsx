@@ -2,6 +2,7 @@
 
 import type { PitStopInfo } from "@/lib/api"
 import { COMPOUND_HEX } from "@/lib/constants"
+import ChartFullScreen from "./ChartFullScreen"
 
 interface PitStopTableProps {
   stops: PitStopInfo[]
@@ -16,8 +17,10 @@ export default function PitStopTable({ stops, highlightDriver, onSelectDriver }:
   const fastestDuration = Math.min(...stops.map((s) => s.pit_duration))
 
   return (
+    <ChartFullScreen title="Pit Stops">
+      {() => (
     <div className="p-4 border-b border-[var(--border)]">
-      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
+      <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Pit Stops
       </p>
 
@@ -86,5 +89,7 @@ export default function PitStopTable({ stops, highlightDriver, onSelectDriver }:
         <span className="text-[#a855f7]">Purple</span> = fastest pit stop
       </p>
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

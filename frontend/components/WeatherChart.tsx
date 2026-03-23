@@ -1,6 +1,7 @@
 "use client"
 
 import type { WeatherDataPoint } from "@/lib/api"
+import ChartFullScreen from "./ChartFullScreen"
 import {
   LineChart,
   Line,
@@ -37,34 +38,37 @@ export default function WeatherChart({ data, currentLap }: Props) {
   }
 
   return (
-    <div className="p-4 border-b border-[var(--border)]">
-      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
+    <ChartFullScreen title="Weather Conditions">
+      {(isFullScreen) => (
+    <div className={`p-4 ${isFullScreen ? "" : "border-b border-[var(--border)]"} ${isFullScreen ? "h-full flex flex-col" : ""}`}>
+      <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Weather Conditions
       </p>
-      <ResponsiveContainer width="100%" height={180}>
+      <ResponsiveContainer width="100%" height={isFullScreen ? "100%" : 180} className={isFullScreen ? "flex-1 min-h-0" : ""}>
         <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.6} />
           <XAxis
             dataKey="lap"
-            tick={{ fill: "#555", fontSize: 10 }}
-            axisLine={{ stroke: "#333" }}
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            axisLine={{ stroke: "var(--text-muted)" }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: "#555", fontSize: 10 }}
-            axisLine={{ stroke: "#333" }}
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            axisLine={{ stroke: "var(--text-muted)" }}
             tickLine={false}
             domain={["auto", "auto"]}
             unit="°"
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#111",
-              border: "1px solid #333",
-              borderRadius: 4,
-              fontSize: 11,
+              backgroundColor: "var(--surface-raised)",
+              border: "1px solid var(--border-hover)",
+              borderRadius: 6,
+              fontSize: 12,
+              padding: "8px 12px",
             }}
-            labelStyle={{ color: "#888" }}
+            labelStyle={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: 4 }}
             formatter={(value, name) => [
               `${Number(value).toFixed(1)}°C`,
               name === "track_temp" ? "Track" : name === "air_temp" ? "Air" : String(name),
@@ -124,5 +128,7 @@ export default function WeatherChart({ data, currentLap }: Props) {
         )}
       </div>
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

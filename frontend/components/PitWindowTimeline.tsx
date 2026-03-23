@@ -1,5 +1,7 @@
 "use client"
 
+import ChartFullScreen from "./ChartFullScreen"
+
 interface PitWindowTimelineProps {
   currentLap: number
   totalLaps: number
@@ -28,8 +30,10 @@ export default function PitWindowTimeline({
   const showOptimal = optimalLap > 0 && optimalLap < 999
 
   return (
+    <ChartFullScreen title="Pit Window">
+      {() => (
     <div className="px-4 py-3 border-b border-[var(--border)]">
-      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
+      <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
         Pit Window
       </p>
 
@@ -109,5 +113,7 @@ export default function PitWindowTimeline({
         )}
       </div>
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

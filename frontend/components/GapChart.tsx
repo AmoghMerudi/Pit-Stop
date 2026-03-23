@@ -1,6 +1,7 @@
 "use client"
 
 import type { GapEvolutionPoint, RaceControlEvent } from "@/lib/api"
+import ChartFullScreen from "./ChartFullScreen"
 import {
   LineChart,
   Line,
@@ -52,9 +53,11 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
   const rcEvents = raceControl ?? []
 
   return (
-    <div className="p-4 border-b border-[var(--border)]">
+    <ChartFullScreen title="Gap Evolution">
+      {(isFullScreen) => (
+    <div className={`p-4 ${isFullScreen ? "" : "border-b border-[var(--border)]"} ${isFullScreen ? "h-full flex flex-col" : ""}`}>
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">
+        <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest">
           Gap Evolution
         </p>
         {rcEvents.length > 0 && (
@@ -74,29 +77,30 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
       <p className="text-[9px] text-[var(--text-muted)] mb-3">
         vs {driver} — positive = {driver} ahead
       </p>
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height={isFullScreen ? "100%" : 280} className={isFullScreen ? "flex-1 min-h-0" : ""}>
         <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.6} />
           <XAxis
             dataKey="lap"
-            tick={{ fill: "#555", fontSize: 10 }}
-            axisLine={{ stroke: "#333" }}
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            axisLine={{ stroke: "var(--text-muted)" }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: "#555", fontSize: 10 }}
-            axisLine={{ stroke: "#333" }}
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            axisLine={{ stroke: "var(--text-muted)" }}
             tickLine={false}
             unit="s"
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#111",
-              border: "1px solid #333",
-              borderRadius: 4,
-              fontSize: 11,
+              backgroundColor: "var(--surface-raised)",
+              border: "1px solid var(--border-hover)",
+              borderRadius: 6,
+              fontSize: 12,
+              padding: "8px 12px",
             }}
-            labelStyle={{ color: "#888" }}
+            labelStyle={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: 4 }}
             formatter={(value, name) => {
               const v = Number(value)
               return [`${v > 0 ? "+" : ""}${v.toFixed(1)}s`, String(name)]
@@ -153,10 +157,12 @@ export default function GapChart({ data, currentLap, driver, raceControl }: Prop
             height={24}
             iconType="plainline"
             iconSize={12}
-            wrapperStyle={{ fontSize: 10, color: "#888" }}
+            wrapperStyle={{ fontSize: 11, color: "var(--text-secondary)" }}
           />
         </LineChart>
       </ResponsiveContainer>
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

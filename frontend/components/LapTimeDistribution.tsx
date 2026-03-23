@@ -1,6 +1,7 @@
 "use client"
 
 import type { LapTimeStats } from "@/lib/api"
+import ChartFullScreen from "./ChartFullScreen"
 
 interface LapTimeDistributionProps {
   data: LapTimeStats[]
@@ -21,8 +22,10 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
   }
 
   return (
+    <ChartFullScreen title="Lap Time Distribution">
+      {() => (
     <div className="p-4 border-b border-[var(--border)]">
-      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
+      <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Lap Time Distribution
       </p>
 
@@ -60,16 +63,16 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
               <div className="flex-1 h-5 relative">
                 {/* Whisker line */}
                 <div
-                  className="absolute top-1/2 h-px bg-[#555]"
+                  className="absolute top-1/2 h-px bg-[var(--text-muted)]"
                   style={{ left: `${whiskerLeft}%`, width: `${whiskerWidth}%`, transform: "translateY(-50%)" }}
                 />
                 {/* Whisker caps */}
                 <div
-                  className="absolute top-1/2 w-px h-2 bg-[#555]"
+                  className="absolute top-1/2 w-px h-2 bg-[var(--text-muted)]"
                   style={{ left: `${whiskerLeft}%`, transform: "translateY(-50%)" }}
                 />
                 <div
-                  className="absolute top-1/2 w-px h-2 bg-[#555]"
+                  className="absolute top-1/2 w-px h-2 bg-[var(--text-muted)]"
                   style={{ left: `${toPercent(stat.whisker_high)}%`, transform: "translateY(-50%)" }}
                 />
                 {/* IQR box */}
@@ -95,5 +98,7 @@ export default function LapTimeDistribution({ data, highlightDriver, onSelectDri
         Box: Q1–Q3 · Line: median · Whiskers: 1.5×IQR · Excludes pit/SC laps
       </p>
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

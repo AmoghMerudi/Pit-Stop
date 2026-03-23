@@ -2,6 +2,7 @@
 
 import type { StintInfo } from "@/lib/api"
 import { COMPOUND_HEX } from "@/lib/constants"
+import ChartFullScreen from "./ChartFullScreen"
 
 interface TyreTimelineProps {
   stints: StintInfo[]
@@ -25,8 +26,10 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
   const drivers = Array.from(driverStints.keys()).sort()
 
   return (
+    <ChartFullScreen title="Tyre Strategy Timeline">
+      {() => (
     <div className="p-4 border-b border-[var(--border)]">
-      <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
+      <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest mb-3">
         Tyre Strategy Timeline
       </p>
 
@@ -101,5 +104,7 @@ export default function TyreTimeline({ stints, totalLaps, onSelectDriver, highli
         ))}
       </div>
     </div>
+      )}
+    </ChartFullScreen>
   )
 }

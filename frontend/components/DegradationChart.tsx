@@ -13,6 +13,7 @@ import {
 } from "recharts"
 import type { DegradationCurve, DriverCurveResult } from "@/lib/api"
 import { COMPOUND_HEX } from "@/lib/constants"
+import ChartFullScreen from "./ChartFullScreen"
 
 interface Props {
   curves: DegradationCurve[]
@@ -92,9 +93,11 @@ export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }
   const data = buildChartData(curves, maxAge, driverOverrides)
 
   return (
-    <div className="p-4 border-b border-[var(--border)]">
+    <ChartFullScreen title="Tyre Degradation">
+      {(isFullScreen) => (
+    <div className={`p-4 ${isFullScreen ? "" : "border-b border-[var(--border)]"} ${isFullScreen ? "h-full flex flex-col" : ""}`}>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest">
+        <p className="text-xs font-medium text-[var(--text-section)] uppercase tracking-widest">
           Tyre Degradation
         </p>
         <div className="flex flex-wrap gap-3">
@@ -162,24 +165,24 @@ export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }
         </div>
       )}
 
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height={isFullScreen ? "100%" : 280} className={isFullScreen ? "flex-1 min-h-0" : ""}>
         <LineChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid stroke="#1a1a1a" />
+          <CartesianGrid stroke="var(--border)" strokeOpacity={0.6} />
           <XAxis
             dataKey="age"
-            stroke="#555"
-            tick={{ fill: "#555", fontSize: 10 }}
-            label={{ value: "Tyre age (laps)", position: "insideBottomRight", offset: -4, fill: "#555", fontSize: 10 }}
+            stroke="var(--text-muted)"
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            label={{ value: "Tyre age (laps)", position: "insideBottomRight", offset: -4, fill: "var(--text-secondary)", fontSize: 11 }}
           />
           <YAxis
-            stroke="#555"
-            tick={{ fill: "#555", fontSize: 10 }}
-            label={{ value: "Delta (s)", angle: -90, position: "insideLeft", fill: "#555", fontSize: 10 }}
+            stroke="var(--text-muted)"
+            tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+            label={{ value: "Delta (s)", angle: -90, position: "insideLeft", fill: "var(--text-secondary)", fontSize: 11 }}
           />
           <Tooltip
-            contentStyle={{ background: "#111", border: "1px solid #222", borderRadius: 4, fontSize: 11 }}
-            labelStyle={{ color: "#888", fontSize: 10 }}
-            itemStyle={{ fontSize: 11 }}
+            contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--border-hover)", borderRadius: 6, fontSize: 12, padding: "8px 12px" }}
+            labelStyle={{ color: "var(--text-primary)", fontSize: 11, fontWeight: 600, marginBottom: 4 }}
+            itemStyle={{ fontSize: 12 }}
             formatter={(value) => [`${Number(value).toFixed(3)}s`, undefined]}
             labelFormatter={(label) => `Lap ${label}`}
           />
@@ -258,11 +261,13 @@ export default function DegradationChart({ curves, maxAge = 40, currentTyreAge }
         const active = getActiveCurve(c, driverOverrides)
         return active.cliff_confidence === "low"
       }) && (
-        <p className="text-[9px] text-[var(--text-dim)] mt-1 italic">
+        <p className="text-[9px] text-[var(--text-muted)] mt-1 italic">
           (?) Cliff prediction has low confidence — limited post-cliff data for this
           driver/compound.
         </p>
       )}
     </div>
+      )}
+    </ChartFullScreen>
   )
 }
