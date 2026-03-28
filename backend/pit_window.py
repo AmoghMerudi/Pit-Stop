@@ -7,6 +7,9 @@ logger = logging.getLogger(__name__)
 
 LOOKAHEAD_LAPS = 20
 
+DRY_COMPOUNDS = {"SOFT", "MEDIUM", "HARD"}
+WET_COMPOUNDS = {"INTERMEDIATE", "WET"}
+
 
 def get_pit_loss(circuit: str | None) -> float:
     """Return pit lane time loss for the circuit, falling back to DEFAULT_PIT_LOSS."""
@@ -17,9 +20,17 @@ def get_pit_loss(circuit: str | None) -> float:
     return PIT_LANE_LOSS[circuit]
 
 
+def _valid_alts(compound: str, curves: dict[str, dict]) -> list[str]:
+    """Return valid alternative compounds, excluding wet tyres in dry conditions."""
+    alts = [c for c in curves if c != compound]
+    if compound in DRY_COMPOUNDS:
+        alts = [c for c in alts if c not in WET_COMPOUNDS]
+    return alts
+
+
 def _find_best_alt(compound: str, curves: dict[str, dict]) -> str | None:
     """Return the best alternative compound (lowest slope) available in curves."""
-    alts = [c for c in curves if c != compound]
+    alts = _valid_alts(compound, curves)
     if not alts:
         return None
     return min(alts, key=lambda c: curves[c]["slope"])
@@ -44,7 +55,7 @@ def calc_crossover(
     if compound not in curves:
         raise KeyError(f"No degradation curve available for {compound}")
 
-    alts = [c for c in curves if c != compound]
+    alts = _valid_alts(compound, curves)
     if not alts:
         # Only one compound available — fall back to single-compound logic
         slope = curves[compound]["slope"]
@@ -93,7 +104,7 @@ def calc_optimal_lap(
     if compound not in curves:
         raise KeyError(f"No degradation curve available for {compound}")
 
-    alts = [c for c in curves if c != compound]
+    alts = _valid_alts(compound, curves)
 
     # Cost of staying out for all remaining laps (no pit)
     no_pit_cost = sum(
