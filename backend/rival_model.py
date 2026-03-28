@@ -186,6 +186,7 @@ def build_live_driver_states(
     positions: list[dict],
     intervals: list[dict],
     driver_number_to_code: dict[int, str] | None = None,
+    current_lap: int = 0,
 ) -> dict[str, dict]:
     """
     Assemble driver states from three OpenF1 live data feeds.
@@ -232,10 +233,13 @@ def build_live_driver_states(
         if compound == "UNKNOWN":
             continue
 
-        # Conservative tyre_age: use tyre_age_at_start (lap_end is None for current stint)
         tyre_age = int(stint.get("tyre_age_at_start", 0))
         if stint.get("lap_end") is not None and stint.get("lap_start") is not None:
+            # Completed stint: actual laps driven = lap_end - lap_start
             tyre_age = tyre_age + int(stint["lap_end"]) - int(stint["lap_start"])
+        elif stint.get("lap_start") is not None and current_lap > 0:
+            # Active stint (lap_end is None): laps driven = current_lap - lap_start
+            tyre_age = tyre_age + max(0, current_lap - int(stint["lap_start"]))
 
         driver_key = (
             driver_number_to_code.get(drv_num, str(drv_num))

@@ -385,6 +385,8 @@ def live_manual_strategy(body: ManualStrategyRequest):
     driver = body.driver.strip().upper()
 
     # Validate inputs
+    if not driver.isalpha() or len(driver) != 3:
+        raise HTTPException(status_code=400, detail="Driver code must be exactly 3 letters (e.g. VER)")
     if body.year < 2018 or body.year > CURRENT_YEAR:
         raise HTTPException(status_code=400, detail=f"Year must be between 2018 and {CURRENT_YEAR}")
     if body.round < 1 or body.round > 24:
@@ -393,6 +395,8 @@ def live_manual_strategy(body: ManualStrategyRequest):
         raise HTTPException(status_code=400, detail=f"Unknown compound: {body.compound}")
     if body.tyre_age < 0:
         raise HTTPException(status_code=400, detail="tyre_age must be >= 0")
+    if body.current_lap > body.total_laps:
+        raise HTTPException(status_code=400, detail="current_lap cannot exceed total_laps")
 
     try:
         # 1. Load degradation baseline (prior race or benchmark fallback)
@@ -410,7 +414,9 @@ def live_manual_strategy(body: ManualStrategyRequest):
             driver_mapping = f_drivers.result()
 
         # 3. Build rival states from OpenF1 live feeds (keyed by 3-letter code)
-        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
+        driver_states = build_live_driver_states(
+            stints, positions, intervals, driver_mapping, current_lap=body.current_lap
+        )
         rival_count = len(driver_states)
 
         # 4. Inject user's driver state (override compound + tyre_age with what user entered)
@@ -505,7 +511,13 @@ def live_grid():
         if not stints:
             return []
 
-        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
+        current_lap = max(
+            (int(s["lap_end"]) for s in stints if s.get("lap_end") is not None),
+            default=0,
+        )
+        driver_states = build_live_driver_states(
+            stints, positions, intervals, driver_mapping, current_lap=current_lap
+        )
 
         grid = []
         for drv, state in driver_states.items():
@@ -578,17 +590,10 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
             except Exception as exc:
                 logger.warning("Bayesian update failed: %s", exc)
 
-        # 4. Build driver states
-        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
-        rival_count = len(driver_states)
-
-        if driver not in driver_states:
-            raise HTTPException(status_code=404, detail=f"Driver {driver} not found in live data")
-
-        # 5. Circuit + remaining laps
+        # 4. Circuit + remaining laps
         circuit_name = get_circuit_for_round(year, round)
 
-        # Estimate remaining laps from stint data
+        # Estimate current lap from the highest completed lap in stint data
         max_lap = 0
         for stint in stints:
             lap_end = stint.get("lap_end")
@@ -596,6 +601,15 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
                 max_lap = int(lap_end)
         total_laps = 57  # default
         remaining_laps = max(1, total_laps - max_lap) if max_lap > 0 else total_laps
+
+        # 5. Build driver states, passing current_lap so active-stint tyre ages are correct
+        driver_states = build_live_driver_states(
+            stints, positions, intervals, driver_mapping, current_lap=max_lap
+        )
+        rival_count = len(driver_states)
+
+        if driver not in driver_states:
+            raise HTTPException(status_code=404, detail=f"Driver {driver} not found in live data")
 
         # 6. Strategy recommendation
         result = recommend(driver, driver_states, curves, circuit_name, remaining_laps)
@@ -651,7 +665,13 @@ def live_tyre_prediction(year: int | None = None, round: int | None = None):
         if not stints:
             return []
 
-        driver_states = build_live_driver_states(stints, positions, intervals, driver_mapping)
+        current_lap = max(
+            (int(s["lap_end"]) for s in stints if s.get("lap_end") is not None),
+            default=0,
+        )
+        driver_states = build_live_driver_states(
+            stints, positions, intervals, driver_mapping, current_lap=current_lap
+        )
 
         predictions = []
         for drv, state in driver_states.items():
