@@ -7,8 +7,11 @@ import MetricTile from "@/components/MetricTile"
 import PitCountdown from "@/components/PitCountdown"
 import CircuitInfo from "@/components/CircuitInfo"
 import ThemeToggle from "@/components/ThemeToggle"
-import { getLiveSession, getLiveGrid, getLiveStrategy, getLiveTyrePrediction } from "@/lib/api"
-import type { LiveSessionInfo, LiveDriverState, LiveStrategyResponse, DegradationCurve, TyrePrediction } from "@/lib/api"
+import GapChart from "@/components/GapChart"
+import PositionChart from "@/components/PositionChart"
+import ChartFullScreen from "@/components/ChartFullScreen"
+import { getLiveSession, getLiveGrid, getLiveStrategy, getLiveTyrePrediction, getLivePositionHistory, getLiveGapEvolution } from "@/lib/api"
+import type { LiveSessionInfo, LiveDriverState, LiveStrategyResponse, DegradationCurve, TyrePrediction, PositionHistoryPoint, GapEvolutionPoint } from "@/lib/api"
 import { COMPOUND_COLOURS, COMPOUND_HEX } from "@/lib/constants"
 import { requestPermission, notify, checkTriggers } from "@/lib/notifications"
 import type { StrategySnapshot } from "@/lib/notifications"
@@ -67,6 +70,8 @@ export default function LivePage() {
   const [error, setError] = useState<string | null>(null)
   const [initialLoading, setInitialLoading] = useState(true)
   const [predictions, setPredictions] = useState<TyrePrediction[]>([])
+  const [positions, setPositions] = useState<PositionHistoryPoint[]>([])
+  const [gaps, setGaps] = useState<GapEvolutionPoint[]>([])
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const prevStrategyRef = useRef<StrategySnapshot | null>(null)
 
@@ -93,14 +98,16 @@ export default function LivePage() {
   // Poll session + grid + tyre predictions
   const refresh = useCallback(async () => {
     try {
-      const [sess, drivers, preds] = await Promise.all([
+      const [sess, drivers, preds, posHistory] = await Promise.all([
         getLiveSession(),
         getLiveGrid(),
         getLiveTyrePrediction().catch(() => []),
+        getLivePositionHistory().catch(() => []),
       ])
       setSession(sess)
       setGrid(drivers)
       setPredictions(preds)
+      setPositions(posHistory)
     } catch {
       setSession(null)
       setGrid([])
@@ -120,12 +127,18 @@ export default function LivePage() {
     if (!selectedDriver || !session?.active) return
 
     let mounted = true
+    let controller = new AbortController()
 
     async function fetchStrategy() {
+      controller.abort()
+      controller = new AbortController()
       setLoading(true)
       setError(null)
       try {
-        const data = await getLiveStrategy(selectedDriver!)
+        const [data, gapData] = await Promise.all([
+          getLiveStrategy(selectedDriver!),
+          getLiveGapEvolution(selectedDriver!).catch(() => []),
+        ])
         if (mounted) {
           // Check notification triggers
           if (notificationsEnabled) {
@@ -138,9 +151,12 @@ export default function LivePage() {
             prevStrategyRef.current = snapshot
           }
           setResult(data)
+          setGaps(gapData)
         }
       } catch (err: unknown) {
-        if (mounted) setError(err instanceof Error ? err.message : "Unexpected error")
+        if (mounted && err instanceof Error && err.name !== "AbortError") {
+          setError(err.message || "Unexpected error")
+        }
       } finally {
         if (mounted) setLoading(false)
       }
@@ -150,6 +166,7 @@ export default function LivePage() {
     const interval = setInterval(fetchStrategy, POLL_INTERVAL)
     return () => {
       mounted = false
+      controller.abort()
       clearInterval(interval)
     }
   }, [selectedDriver, session?.active, notificationsEnabled])
@@ -430,6 +447,25 @@ export default function LivePage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Gap evolution chart */}
+          {gaps.length > 0 && selectedDriver && (
+            <GapChart data={gaps} currentLap={null} driver={selectedDriver} />
+          )}
+
+          {/* Position changes chart */}
+          {positions.length > 0 && (
+            <PositionChart
+              data={positions}
+              highlightDriver={selectedDriver ?? undefined}
+              onSelectDriver={(d) => {
+                setSelectedDriver(d)
+                setResult(null)
+                setError(null)
+                prevStrategyRef.current = null
+              }}
+            />
           )}
 
           {/* Circuit info */}

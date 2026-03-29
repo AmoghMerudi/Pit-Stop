@@ -70,6 +70,7 @@ export default function RacePage({ params }: PageProps) {
   const [pitStops, setPitStops] = useState<PitStopInfo[]>([])
   const [summary, setSummary] = useState<RaceSummaryType | null>(null)
   const [driverInfo, setDriverInfo] = useState<DriverInfo[]>([])
+  const [secondaryLoading, setSecondaryLoading] = useState(false)
   const dashboardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -111,15 +112,18 @@ export default function RacePage({ params }: PageProps) {
         setLoading(false)
 
         // Phase 2: secondary data — load in background after page is visible
-        getSectors(year, round, cl).then(setSectors).catch(() => {})
-        getWeather(year, round).then(setWeather).catch(() => {})
-        getGapEvolution(year, round, driver).then(setGaps).catch(() => {})
-        getRaceControl(year, round).then(setRaceControl).catch(() => {})
-        getStints(year, round).then(setStints).catch(() => {})
-        getPositions(year, round).then(setPositions).catch(() => {})
-        getLapTimes(year, round).then(setLapTimes).catch(() => {})
-        getPitStops(year, round).then(setPitStops).catch(() => {})
-        getRaceSummary(year, round).then(setSummary).catch(() => {})
+        setSecondaryLoading(true)
+        Promise.allSettled([
+          getSectors(year, round, cl).then(setSectors),
+          getWeather(year, round).then(setWeather),
+          getGapEvolution(year, round, driver).then(setGaps),
+          getRaceControl(year, round).then(setRaceControl),
+          getStints(year, round).then(setStints),
+          getPositions(year, round).then(setPositions),
+          getLapTimes(year, round).then(setLapTimes),
+          getPitStops(year, round).then(setPitStops),
+          getRaceSummary(year, round).then(setSummary),
+        ]).finally(() => setSecondaryLoading(false))
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "An unexpected error occurred"
@@ -475,12 +479,17 @@ export default function RacePage({ params }: PageProps) {
             )}
 
             {/* Gap evolution chart */}
-            {gaps && gaps.length > 0 && (
+            {gaps && gaps.length > 0 ? (
               <GapChart data={gaps} currentLap={selectedLap} driver={activeDriver} raceControl={raceControl} driverInfo={driverInfo} />
+            ) : secondaryLoading && !gaps && (
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="text-[10px] text-[var(--text-section)] uppercase tracking-widest mb-2">Gap Evolution</div>
+                <div className="h-32 bg-[var(--surface-raised)] animate-pulse" />
+              </div>
             )}
 
             {/* Position changes chart */}
-            {positions.length > 0 && (
+            {positions.length > 0 ? (
               <PositionChart
                 data={positions}
                 highlightDriver={activeDriver}
@@ -489,26 +498,51 @@ export default function RacePage({ params }: PageProps) {
                 driverInfo={driverInfo}
                 onSelectDriver={handleDriverSelect}
               />
+            ) : secondaryLoading && (
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="text-[10px] text-[var(--text-section)] uppercase tracking-widest mb-2">Position Changes</div>
+                <div className="h-32 bg-[var(--surface-raised)] animate-pulse" />
+              </div>
             )}
 
             {/* Sector times table */}
-            {sectors && sectors.length > 0 && (
+            {sectors && sectors.length > 0 ? (
               <SectorTimesTable sectors={sectors} selectedDriver={activeDriver} />
+            ) : secondaryLoading && !sectors && (
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="text-[10px] text-[var(--text-section)] uppercase tracking-widest mb-2">Sector Times</div>
+                <div className="h-20 bg-[var(--surface-raised)] animate-pulse" />
+              </div>
             )}
 
             {/* Lap time distribution */}
-            {lapTimes.length > 0 && (
+            {lapTimes.length > 0 ? (
               <LapTimeDistribution data={lapTimes} highlightDriver={activeDriver} driverInfo={driverInfo} onSelectDriver={handleDriverSelect} />
+            ) : secondaryLoading && (
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="text-[10px] text-[var(--text-section)] uppercase tracking-widest mb-2">Lap Time Distribution</div>
+                <div className="h-28 bg-[var(--surface-raised)] animate-pulse" />
+              </div>
             )}
 
             {/* Tyre strategy timeline */}
-            {stints.length > 0 && (
+            {stints.length > 0 ? (
               <TyreTimeline stints={stints} totalLaps={totalLaps} currentLap={selectedLap ?? undefined} onSelectDriver={handleDriverSelect} highlightDriver={activeDriver} driverInfo={driverInfo} />
+            ) : secondaryLoading && (
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="text-[10px] text-[var(--text-section)] uppercase tracking-widest mb-2">Tyre Strategy</div>
+                <div className="h-24 bg-[var(--surface-raised)] animate-pulse" />
+              </div>
             )}
 
             {/* Pit stop performance */}
-            {pitStops.length > 0 && (
+            {pitStops.length > 0 ? (
               <PitStopTable stops={pitStops} highlightDriver={activeDriver} driverInfo={driverInfo} onSelectDriver={handleDriverSelect} />
+            ) : secondaryLoading && (
+              <div className="border-b border-[var(--border)] p-4">
+                <div className="text-[10px] text-[var(--text-section)] uppercase tracking-widest mb-2">Pit Stops</div>
+                <div className="h-20 bg-[var(--surface-raised)] animate-pulse" />
+              </div>
             )}
           </div>
         </div>

@@ -268,7 +268,14 @@ export default function H2HPage({ params }: PageProps) {
 
       {/* Sync overlay — full page */}
       {syncMessage && (
-        <div className="fixed inset-0 z-50 bg-[var(--surface)]/90 flex flex-col items-center justify-center gap-6">
+        <div
+          className="fixed inset-0 z-50 bg-[var(--surface)]/90 flex flex-col items-center justify-center gap-6"
+          onClick={() => setSyncMessage(null)}
+          onKeyDown={(e) => e.key === "Escape" && setSyncMessage(null)}
+          role="button"
+          tabIndex={0}
+          aria-label="Dismiss"
+        >
           <style>{`
             @keyframes f1-light-h2h {
               0%, 100% { background-color: #1a0a0a; box-shadow: none; border-color: #333; }
@@ -290,6 +297,7 @@ export default function H2HPage({ params }: PageProps) {
           <p className="text-[var(--text-secondary)] text-xs font-mono tracking-wider uppercase">
             {syncMessage}
           </p>
+          <p className="text-[var(--text-dim)] text-[10px]">Click to dismiss</p>
         </div>
       )}
 

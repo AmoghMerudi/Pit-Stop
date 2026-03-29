@@ -13,7 +13,7 @@ from benchmarks import load_baseline_curves
 from degradation import bayesian_update, find_cliff_lap, fuel_correct_laptimes
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds, resolve_driver_curves
-from ingestion import CURRENT_YEAR, OPENF1_BASE_URL, OPENF1_TIMEOUT, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_intervals, get_live_laps, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
+from ingestion import CURRENT_YEAR, OPENF1_BASE_URL, OPENF1_TIMEOUT, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_gap_evolution, get_live_intervals, get_live_laps, get_live_position_history, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
 from models import DegradationCurve, DriverCurveResult, DriverInfo, ErrorResponse, GapEvolutionPoint, HealthResponse, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
@@ -703,3 +703,15 @@ def live_laps():
 @app.get("/live/stints", response_model=list[dict])
 def live_stints():
     return get_live_stints()
+
+
+@app.get("/live/positions/history", response_model=list[PositionHistoryPoint])
+def live_pos_history():
+    """Position history per lap from live OpenF1 data."""
+    return get_live_position_history("latest")
+
+
+@app.get("/live/gaps/{driver}", response_model=list[GapEvolutionPoint])
+def live_gaps(driver: str):
+    """Gap evolution for a driver from live OpenF1 data."""
+    return get_live_gap_evolution(driver.upper(), "latest")

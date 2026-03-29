@@ -924,3 +924,143 @@ def get_live_intervals(session_key: int | str | None = None) -> list[dict]:
     except Exception as exc:
         logger.warning("OpenF1 intervals request failed: %s", exc)
         return []
+
+
+def _fetch_live_laps_raw(session_key: int | str | None = None) -> list[dict]:
+    """Fetch ALL laps from OpenF1 without filtering (for position/gap history)."""
+    params: dict = {}
+    if session_key is not None:
+        params["session_key"] = session_key
+    try:
+        response = requests.get(
+            f"{OPENF1_BASE_URL}/laps", params=params, timeout=OPENF1_TIMEOUT,
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as exc:
+        logger.warning("OpenF1 raw laps request failed: %s", exc)
+        return []
+
+
+def get_live_position_history(session_key: int | str | None = None) -> list[dict]:
+    """
+    Build per-lap position history from live OpenF1 lap data.
+
+    Computes positions by ranking drivers on cumulative lap time at each lap.
+    Returns list of {lap, positions: {driver_code: position}}.
+    """
+    driver_mapping = get_live_drivers(session_key)
+    raw = _fetch_live_laps_raw(session_key)
+    if not raw:
+        return []
+
+    # Build per-driver lap durations, dedup on (driver, lap) keeping last
+    seen: dict[tuple, float] = {}
+    for row in raw:
+        drv = row.get("driver_number")
+        lap = row.get("lap_number")
+        dur = row.get("lap_duration")
+        if drv is None or lap is None or dur is None:
+            continue
+        seen[(drv, int(lap))] = float(dur)
+
+    # Group by driver
+    driver_laps: dict[int, dict[int, float]] = {}
+    for (drv, lap), dur in seen.items():
+        driver_laps.setdefault(drv, {})[lap] = dur
+
+    if not driver_laps:
+        return []
+
+    # Compute cumulative times per driver
+    cum_times: dict[int, dict[int, float]] = {}
+    for drv, laps in driver_laps.items():
+        total = 0.0
+        cum: dict[int, float] = {}
+        for lap_num in sorted(laps.keys()):
+            total += laps[lap_num]
+            cum[lap_num] = total
+        cum_times[drv] = cum
+
+    # For each lap, rank drivers by cumulative time (lowest = P1)
+    all_laps = sorted({lap for cum in cum_times.values() for lap in cum})
+
+    results = []
+    for lap in all_laps:
+        completed = [
+            (drv, cum_times[drv][lap])
+            for drv in cum_times if lap in cum_times[drv]
+        ]
+        completed.sort(key=lambda x: x[1])
+
+        positions: dict[str, int] = {}
+        for pos, (drv, _) in enumerate(completed, 1):
+            code = driver_mapping.get(drv, str(drv))
+            positions[code] = pos
+
+        if positions:
+            results.append({"lap": int(lap), "positions": positions})
+
+    return results
+
+
+def get_live_gap_evolution(driver_code: str, session_key: int | str | None = None) -> list[dict]:
+    """
+    Build gap evolution from live OpenF1 lap data.
+
+    Computes gap = rival_cumulative_time - target_cumulative_time at each lap.
+    Positive gap means target driver is ahead of rival.
+    Returns list of {lap, gaps: {driver_code: gap_seconds}}.
+    """
+    driver_mapping = get_live_drivers(session_key)
+    code_to_num = {v: k for k, v in driver_mapping.items()}
+    target_num = code_to_num.get(driver_code.upper())
+    if target_num is None:
+        return []
+
+    raw = _fetch_live_laps_raw(session_key)
+    if not raw:
+        return []
+
+    # Build per-driver lap durations, dedup on (driver, lap) keeping last
+    seen: dict[tuple, float] = {}
+    for row in raw:
+        drv = row.get("driver_number")
+        lap = row.get("lap_number")
+        dur = row.get("lap_duration")
+        if drv is None or lap is None or dur is None:
+            continue
+        seen[(drv, int(lap))] = float(dur)
+
+    driver_laps: dict[int, dict[int, float]] = {}
+    for (drv, lap), dur in seen.items():
+        driver_laps.setdefault(drv, {})[lap] = dur
+
+    if target_num not in driver_laps:
+        return []
+
+    # Compute cumulative times
+    cum_times: dict[int, dict[int, float]] = {}
+    for drv, laps in driver_laps.items():
+        total = 0.0
+        cum: dict[int, float] = {}
+        for lap_num in sorted(laps.keys()):
+            total += laps[lap_num]
+            cum[lap_num] = total
+        cum_times[drv] = cum
+
+    target_cum = cum_times[target_num]
+
+    results = []
+    for lap in sorted(target_cum.keys()):
+        target_time = target_cum[lap]
+        gaps: dict[str, float] = {}
+        for drv, cum in cum_times.items():
+            if drv == target_num or lap not in cum:
+                continue
+            code = driver_mapping.get(drv, str(drv))
+            gaps[code] = round(cum[lap] - target_time, 3)
+        if gaps:
+            results.append({"lap": int(lap), "gaps": gaps})
+
+    return results

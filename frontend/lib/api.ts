@@ -276,6 +276,14 @@ export function getLiveStints(): Promise<LiveStint[]> {
   return apiFetch("/live/stints")
 }
 
+export function getLivePositionHistory(): Promise<PositionHistoryPoint[]> {
+  return apiFetch("/live/positions/history")
+}
+
+export function getLiveGapEvolution(driver: string): Promise<GapEvolutionPoint[]> {
+  return apiFetch(`/live/gaps/${driver}`)
+}
+
 export interface LiveSessionInfo {
   active: boolean
   session_key: number | null

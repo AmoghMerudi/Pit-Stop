@@ -32,14 +32,17 @@ export default function WhatIfSimulator({
   })
   const [result, setResult] = useState<WhatIfResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [simError, setSimError] = useState<string | null>(null)
 
   async function simulate() {
     setLoading(true)
+    setSimError(null)
     try {
       const data = await getWhatIf(year, round, driver, pitLap, compound)
       setResult(data)
-    } catch {
+    } catch (err: unknown) {
       setResult(null)
+      setSimError(err instanceof Error ? err.message : "Simulation failed — try a different lap or compound")
     } finally {
       setLoading(false)
     }
@@ -122,6 +125,11 @@ export default function WhatIfSimulator({
               {loading ? "..." : "Simulate"}
             </button>
           </div>
+
+          {/* Error */}
+          {simError && (
+            <p className="text-[#e8002d] text-xs font-mono">{simError}</p>
+          )}
 
           {/* Results */}
           {result && (

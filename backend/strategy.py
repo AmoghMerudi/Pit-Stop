@@ -34,7 +34,7 @@ def recommend(
     best_alt = window["best_alt"]
     optimal_lap = window["optimal_lap"]
 
-    pit_for_optimal = optimal_lap >= 1 and optimal_lap <= 1 and net_delta > 0
+    pit_for_optimal = optimal_lap >= 1 and optimal_lap <= 5 and net_delta > 0
     pit_for_crossover = crossover_lap <= CROSSOVER_PIT_THRESHOLD
     pit_for_undercut = len(undercut_threats) > 0
 

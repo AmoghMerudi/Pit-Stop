@@ -17,12 +17,20 @@ export default function LandingPage() {
           <Link href="/live" className="text-[#888] hover:text-white text-xs uppercase tracking-widest transition-colors">
             Live
           </Link>
+          <a
+            href="https://github.com/amoghmerudi/Pit-Stop"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#888] hover:text-white text-xs uppercase tracking-widest transition-colors hidden sm:block"
+          >
+            GitHub
+          </a>
           <LiveSessionBadge />
         </nav>
       </header>
 
-      {/* Pitwall Grid */}
-      <section className="flex-1 grid grid-cols-[minmax(0,2fr)_minmax(0,7fr)_minmax(0,3fr)] grid-rows-[auto_1fr_auto] gap-px bg-[#222] p-px">
+      {/* Pitwall Grid — desktop 3-col layout */}
+      <section className="flex-1 grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,7fr)_minmax(0,3fr)] grid-rows-[auto_1fr_auto] gap-px bg-[#222] p-px">
 
         {/* ──── TOP BAR: Race Info Banner ──── */}
         <div className="col-span-full bg-[#0a0a0a] px-6 py-3 flex items-center justify-between">
@@ -32,19 +40,19 @@ export default function LandingPage() {
               <span className="text-[#39b54a] text-[10px] font-bold uppercase tracking-widest">Track Status: Green</span>
             </div>
             <span className="text-[#333] text-[10px]">|</span>
-            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">LAP 42 / 63</span>
-            <span className="text-[#333] text-[10px]">|</span>
-            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">AIR 31°C &middot; TRACK 48°C</span>
+            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono hidden sm:block">LAP 42 / 57</span>
+            <span className="text-[#333] text-[10px] hidden sm:block">|</span>
+            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono hidden sm:block">AIR 29°C &middot; TRACK 44°C</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono">DRS ENABLED</span>
-            <span className="text-[#333] text-[10px]">|</span>
-            <span className="text-[#e8002d] text-[10px] font-bold uppercase tracking-widest font-mono">STINT 2 &middot; MEDIUM L14</span>
+            <span className="text-[#555] text-[10px] uppercase tracking-widest font-mono hidden sm:block">DRS ENABLED</span>
+            <span className="text-[#333] text-[10px] hidden sm:block">|</span>
+            <span className="text-[#e8002d] text-[10px] font-bold uppercase tracking-widest font-mono">STINT 2 &middot; MEDIUM L18</span>
           </div>
         </div>
 
-        {/* ──── LEFT PANEL: Timing Tower ──── */}
-        <div className="col-span-1 bg-[#0a0a0a] p-3 flex flex-col">
+        {/* ──── LEFT PANEL: Timing Tower (hidden on mobile) ──── */}
+        <div className="col-span-1 bg-[#0a0a0a] p-3 flex-col hidden md:flex">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[#555] text-xs uppercase tracking-widest font-bold">Timing Tower</span>
             <span className="text-[#333] text-xs font-mono">INT</span>
@@ -52,28 +60,26 @@ export default function LandingPage() {
 
           <div className="flex flex-col gap-px">
             {[
-              { pos: 1,  name: "VER", time: "1:31.742", gap: "LEADER",  compound: "#e8002d", tyreAge: "L14", s: ["purple","green","purple"] },
-              { pos: 2,  name: "NOR", time: "1:31.998", gap: "+1.243",  compound: "#e8002d", tyreAge: "L12", s: ["green","purple","green"] },
-              { pos: 3,  name: "LEC", time: "1:32.108", gap: "+3.891",  compound: "#ffd700", tyreAge: "L22", s: ["yellow","green","yellow"] },
-              { pos: 4,  name: "HAM", time: "1:32.344", gap: "+5.102",  compound: "#ffd700", tyreAge: "L22", s: ["green","yellow","green"] },
-              { pos: 5,  name: "PIA", time: "1:32.511", gap: "+7.845",  compound: "#e8002d", tyreAge: "L14", s: ["yellow","green","purple"] },
-              { pos: 6,  name: "SAI", time: "1:32.677", gap: "+9.331",  compound: "#ffffff", tyreAge: "L28", s: ["green","yellow","green"] },
-              { pos: 7,  name: "RUS", time: "1:32.812", gap: "+11.204", compound: "#ffd700", tyreAge: "L18", s: ["yellow","green","yellow"] },
-              { pos: 8,  name: "ANT", time: "1:32.945", gap: "+13.556", compound: "#e8002d", tyreAge: "L12", s: ["green","green","purple"] },
-              { pos: 9,  name: "ALO", time: "1:33.001", gap: "+14.667", compound: "#ffffff", tyreAge: "L32", s: ["green","yellow","green"] },
-              { pos: 10, name: "GAS", time: "1:33.244", gap: "+18.903", compound: "#ffd700", tyreAge: "L20", s: ["yellow","yellow","yellow"] },
-              { pos: 11, name: "TSU", time: "1:33.398", gap: "+21.556", compound: "#ffffff", tyreAge: "L30", s: ["green","green","yellow"] },
-              { pos: 12, name: "HAD", time: "1:33.512", gap: "+24.112", compound: "#ffd700", tyreAge: "L24", s: ["yellow","green","green"] },
-              { pos: 13, name: "HUL", time: "1:33.601", gap: "+26.445", compound: "#ffffff", tyreAge: "L34", s: ["green","yellow","yellow"] },
-              { pos: 14, name: "BOR", time: "1:33.720", gap: "+28.334", compound: "#e8002d", tyreAge: "L10", s: ["purple","green","yellow"] },
-              { pos: 15, name: "LAW", time: "1:33.890", gap: "+31.002", compound: "#ffd700", tyreAge: "L22", s: ["yellow","yellow","green"] },
-              { pos: 16, name: "DOO", time: "1:33.977", gap: "+34.891", compound: "#ffffff", tyreAge: "L36", s: ["green","green","yellow"] },
-              { pos: 17, name: "STR", time: "1:34.102", gap: "+38.220", compound: "#ffd700", tyreAge: "L26", s: ["yellow","yellow","yellow"] },
-              { pos: 18, name: "BEA", time: "1:34.234", gap: "+41.667", compound: "#ffffff", tyreAge: "L38", s: ["green","yellow","green"] },
-              { pos: 19, name: "OCO", time: "1:34.401", gap: "+45.112", compound: "#ffd700", tyreAge: "L20", s: ["yellow","green","yellow"] },
-              { pos: 20, name: "COL", time: "1:34.556", gap: "+48.891", compound: "#ffffff", tyreAge: "L40", s: ["green","yellow","yellow"] },
-              { pos: 21, name: "DRU", time: "1:34.712", gap: "+52.334", compound: "#ffd700", tyreAge: "L24", s: ["yellow","green","green"] },
-              { pos: 22, name: "MAL", time: "1:34.889", gap: "+55.778", compound: "#ffffff", tyreAge: "L42", s: ["yellow","yellow","green"] },
+              { pos: 1,  name: "VER", time: "1:31.742", gap: "LEADER",  compound: "#e8002d", tyreAge: "L18", s: ["purple","green","purple"] },
+              { pos: 2,  name: "NOR", time: "1:31.998", gap: "+1.243",  compound: "#e8002d", tyreAge: "L16", s: ["green","purple","green"] },
+              { pos: 3,  name: "LEC", time: "1:32.108", gap: "+3.891",  compound: "#ffd700", tyreAge: "L26", s: ["yellow","green","yellow"] },
+              { pos: 4,  name: "HAM", time: "1:32.344", gap: "+5.102",  compound: "#ffd700", tyreAge: "L24", s: ["green","yellow","green"] },
+              { pos: 5,  name: "PIA", time: "1:32.511", gap: "+7.845",  compound: "#e8002d", tyreAge: "L16", s: ["yellow","green","purple"] },
+              { pos: 6,  name: "SAI", time: "1:32.677", gap: "+9.331",  compound: "#ffffff", tyreAge: "L32", s: ["green","yellow","green"] },
+              { pos: 7,  name: "RUS", time: "1:32.812", gap: "+11.204", compound: "#ffd700", tyreAge: "L20", s: ["yellow","green","yellow"] },
+              { pos: 8,  name: "ANT", time: "1:32.945", gap: "+13.556", compound: "#e8002d", tyreAge: "L14", s: ["green","green","purple"] },
+              { pos: 9,  name: "ALO", time: "1:33.001", gap: "+14.667", compound: "#ffffff", tyreAge: "L36", s: ["green","yellow","green"] },
+              { pos: 10, name: "GAS", time: "1:33.244", gap: "+18.903", compound: "#ffd700", tyreAge: "L22", s: ["yellow","yellow","yellow"] },
+              { pos: 11, name: "TSU", time: "1:33.398", gap: "+21.556", compound: "#ffffff", tyreAge: "L34", s: ["green","green","yellow"] },
+              { pos: 12, name: "HAD", time: "1:33.512", gap: "+24.112", compound: "#ffd700", tyreAge: "L26", s: ["yellow","green","green"] },
+              { pos: 13, name: "HUL", time: "1:33.601", gap: "+26.445", compound: "#ffffff", tyreAge: "L38", s: ["green","yellow","yellow"] },
+              { pos: 14, name: "BOR", time: "1:33.720", gap: "+28.334", compound: "#e8002d", tyreAge: "L12", s: ["purple","green","yellow"] },
+              { pos: 15, name: "LAW", time: "1:33.890", gap: "+31.002", compound: "#ffd700", tyreAge: "L24", s: ["yellow","yellow","green"] },
+              { pos: 16, name: "DOO", time: "1:33.977", gap: "+34.891", compound: "#ffffff", tyreAge: "L40", s: ["green","green","yellow"] },
+              { pos: 17, name: "STR", time: "1:34.102", gap: "+38.220", compound: "#ffd700", tyreAge: "L28", s: ["yellow","yellow","yellow"] },
+              { pos: 18, name: "BEA", time: "1:34.234", gap: "+41.667", compound: "#ffffff", tyreAge: "L42", s: ["green","yellow","green"] },
+              { pos: 19, name: "OCO", time: "1:34.401", gap: "+45.112", compound: "#ffd700", tyreAge: "L22", s: ["yellow","green","yellow"] },
+              { pos: 20, name: "COL", time: "1:34.556", gap: "+48.891", compound: "#ffffff", tyreAge: "L44", s: ["green","yellow","yellow"] },
             ].map((d) => (
               <div key={d.pos} className={`flex items-center gap-1.5 py-1 px-1.5 ${d.pos === 1 ? "bg-[#1a1a1a]" : ""}`}>
                 <span className="text-[#555] font-mono text-xs w-4 text-right">{d.pos}</span>
@@ -102,7 +108,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* DRS indicator */}
           <div className="mt-2 pt-2 border-t border-[#1a1a1a] flex items-center justify-between">
             <span className="text-xs text-[#39b54a] font-mono font-bold tracking-wider">DRS</span>
             <span className="text-xs text-[#555] font-mono">P2 within 1.000s of P1</span>
@@ -125,8 +130,9 @@ export default function LandingPage() {
             </div>
 
             <p className="mb-9 max-w-xl text-center text-base leading-relaxed text-[#888] sm:max-w-2xl sm:text-lg md:mb-10">
-              Pit window analysis powered by real telemetry data. Degradation curves, crossover laps,
-              undercut threats, and optimal pit strategy — for every race since 2018.
+              Real F1 lap data. Real degradation models. Tyre cliff detection,
+              undercut scoring, and crossover lap calculation — every race since 2018,
+              with live session support.
             </p>
 
             {/* CTAs */}
@@ -145,12 +151,12 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Mini stats row */}
+            {/* Stats row */}
             <div className="grid w-full max-w-2xl grid-cols-4 gap-px bg-[#222]">
               {[
-                { value: "2018+", label: "Seasons" },
+                { value: "2018–26", label: "Seasons" },
                 { value: "20+", label: "Circuits" },
-                { value: "5", label: "Compounds" },
+                { value: "pwlf", label: "Deg Model" },
                 { value: "15s", label: "Live Refresh" },
               ].map((s) => (
                 <div key={s.label} className="bg-[#0a0a0a] py-4 text-center sm:py-5">
@@ -162,8 +168,8 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* ──── RIGHT PANEL: Telemetry + Strategy ──── */}
-        <div className="col-span-1 bg-[#0a0a0a] p-4 flex flex-col gap-4">
+        {/* ──── RIGHT PANEL: Telemetry + Strategy (hidden on mobile) ──── */}
+        <div className="col-span-1 bg-[#0a0a0a] p-4 flex-col gap-4 hidden md:flex">
 
           {/* Tyre Degradation Chart */}
           <div>
@@ -172,37 +178,21 @@ export default function LandingPage() {
               <span className="text-[#333] text-[9px] font-mono">ms/lap</span>
             </div>
             <svg viewBox="0 0 200 100" className="w-full" aria-hidden="true">
-              {/* Grid lines */}
               <line x1="0" y1="25" x2="200" y2="25" stroke="#1a1a1a" strokeWidth="0.5" />
               <line x1="0" y1="50" x2="200" y2="50" stroke="#1a1a1a" strokeWidth="0.5" />
               <line x1="0" y1="75" x2="200" y2="75" stroke="#1a1a1a" strokeWidth="0.5" />
-              {/* SOFT — steep degradation (red) */}
-              <polyline
-                fill="none"
-                stroke="#e8002d"
-                strokeWidth="1.5"
-                points="0,85 15,82 30,78 45,72 60,64 75,55 90,44 105,35 120,28 135,22 150,18"
-              />
-              {/* MEDIUM — moderate degradation (yellow) */}
-              <polyline
-                fill="none"
-                stroke="#ffd700"
-                strokeWidth="1.5"
-                points="0,90 20,88 40,85 60,81 80,76 100,70 120,63 140,56 160,49 180,43 200,38"
-              />
-              {/* HARD — gentle degradation (white) */}
-              <polyline
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="1.5"
-                strokeOpacity="0.5"
-                points="0,92 25,91 50,89 75,86 100,82 125,78 150,73 175,68 200,63"
-              />
-              {/* Compound labels */}
+              <polyline fill="none" stroke="#e8002d" strokeWidth="1.5"
+                points="0,85 15,82 30,78 45,72 60,64 75,55 90,44 105,35 120,28 135,22 150,18" />
+              <polyline fill="none" stroke="#ffd700" strokeWidth="1.5"
+                points="0,90 20,88 40,85 60,81 80,76 100,70 120,63 140,56 160,49 180,43 200,38" />
+              <polyline fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.5"
+                points="0,92 25,91 50,89 75,86 100,82 125,78 150,73 175,68 200,63" />
+              {/* Cliff marker on SOFT */}
+              <line x1="120" y1="15" x2="120" y2="100" stroke="#a855f7" strokeWidth="0.5" strokeDasharray="2,2" />
+              <text x="122" y="20" fill="#a855f7" fontSize="6" fontFamily="monospace">CLIFF</text>
               <text x="152" y="16" fill="#e8002d" fontSize="7" fontFamily="monospace">SOFT</text>
               <text x="170" y="36" fill="#ffd700" fontSize="7" fontFamily="monospace">MED</text>
               <text x="170" y="61" fill="#888" fontSize="7" fontFamily="monospace">HARD</text>
-              {/* Axis labels */}
               <text x="0" y="98" fill="#333" fontSize="6" fontFamily="monospace">L1</text>
               <text x="95" y="98" fill="#333" fontSize="6" fontFamily="monospace">L15</text>
               <text x="185" y="98" fill="#333" fontSize="6" fontFamily="monospace">L30</text>
@@ -215,19 +205,19 @@ export default function LandingPage() {
             <div className="mt-2 flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[#888] font-mono text-[10px]">Optimal stop</span>
-                <span className="text-[#39b54a] font-mono text-[11px] font-bold">LAP 28-32</span>
+                <span className="text-[#39b54a] font-mono text-[11px] font-bold">LAP 26–30</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#888] font-mono text-[10px]">Crossover lap</span>
-                <span className="text-white font-mono text-[11px] font-bold">LAP 26</span>
+                <span className="text-white font-mono text-[11px] font-bold">LAP 24</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#888] font-mono text-[10px]">Pit loss</span>
-                <span className="text-[#e8002d] font-mono text-[11px] font-bold">22.4s</span>
+                <span className="text-[#888] font-mono text-[10px]">Net delta</span>
+                <span className="text-[#39b54a] font-mono text-[11px] font-bold">+4.2s</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#888] font-mono text-[10px]">Undercut threat</span>
-                <span className="text-[#ffd700] font-mono text-[11px] font-bold">HIGH</span>
+                <span className="text-[#ffd700] font-mono text-[11px] font-bold">NOR · HIGH</span>
               </div>
             </div>
           </div>
@@ -236,13 +226,10 @@ export default function LandingPage() {
           <div className="border-t border-[#1a1a1a] pt-3">
             <span className="text-[#555] text-[10px] uppercase tracking-widest font-bold">Sector Analysis</span>
             <svg viewBox="0 0 200 80" className="w-full mt-2" aria-hidden="true">
-              {/* Header */}
               <text x="40" y="10" fill="#555" fontSize="7" fontFamily="monospace" textAnchor="middle">S1</text>
               <text x="90" y="10" fill="#555" fontSize="7" fontFamily="monospace" textAnchor="middle">S2</text>
               <text x="140" y="10" fill="#555" fontSize="7" fontFamily="monospace" textAnchor="middle">S3</text>
               <text x="180" y="10" fill="#555" fontSize="7" fontFamily="monospace" textAnchor="middle">LAP</text>
-
-              {/* VER row */}
               <text x="5" y="24" fill="#888" fontSize="7" fontFamily="monospace">VER</text>
               <rect x="25" y="16" width="30" height="10" fill="#a855f7" rx="1" />
               <rect x="75" y="16" width="30" height="10" fill="#39b54a" rx="1" />
@@ -251,8 +238,6 @@ export default function LandingPage() {
               <text x="90" y="24" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">33.1</text>
               <text x="140" y="24" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">30.2</text>
               <text x="180" y="24" fill="#a855f7" fontSize="6" fontFamily="monospace" textAnchor="middle">1:31.7</text>
-
-              {/* NOR row */}
               <text x="5" y="39" fill="#888" fontSize="7" fontFamily="monospace">NOR</text>
               <rect x="25" y="31" width="30" height="10" fill="#39b54a" rx="1" />
               <rect x="75" y="31" width="30" height="10" fill="#a855f7" rx="1" />
@@ -261,8 +246,6 @@ export default function LandingPage() {
               <text x="90" y="39" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">32.9</text>
               <text x="140" y="39" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">30.5</text>
               <text x="180" y="39" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">1:32.0</text>
-
-              {/* LEC row */}
               <text x="5" y="54" fill="#888" fontSize="7" fontFamily="monospace">LEC</text>
               <rect x="25" y="46" width="30" height="10" fill="#ffd700" rx="1" />
               <rect x="75" y="46" width="30" height="10" fill="#39b54a" rx="1" />
@@ -271,8 +254,6 @@ export default function LandingPage() {
               <text x="90" y="54" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">33.0</text>
               <text x="140" y="54" fill="black" fontSize="6" fontFamily="monospace" textAnchor="middle">30.2</text>
               <text x="180" y="54" fill="white" fontSize="6" fontFamily="monospace" textAnchor="middle">1:32.1</text>
-
-              {/* HAM row */}
               <text x="5" y="69" fill="#888" fontSize="7" fontFamily="monospace">HAM</text>
               <rect x="25" y="61" width="30" height="10" fill="#39b54a" rx="1" />
               <rect x="75" y="61" width="30" height="10" fill="#ffd700" rx="1" />
@@ -288,33 +269,30 @@ export default function LandingPage() {
           <div className="border-t border-[#1a1a1a] pt-3">
             <span className="text-[#555] text-[10px] uppercase tracking-widest font-bold">Strategy</span>
             <div className="mt-2 flex flex-col gap-2">
-              {/* Stint bar visualization */}
               <div className="flex items-center gap-1">
                 <span className="text-[#444] font-mono text-[9px] w-8">VER</span>
                 <div className="flex-1 flex h-3 gap-px">
-                  <div className="bg-[#e8002d] flex-[18]" title="SOFT L1-L18" />
-                  <div className="bg-[#ffd700] flex-[24]" title="MEDIUM L19-L42" />
-                  <div className="bg-[#333] flex-[21] border border-dashed border-[#555]" title="Projected L43-L63" />
+                  <div className="bg-[#e8002d] flex-[18]" title="SOFT L1–L18" />
+                  <div className="bg-[#ffd700] flex-[24]" title="MEDIUM L19–L42" />
+                  <div className="bg-[#333] flex-[15] border border-dashed border-[#555]" title="Projected" />
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[#444] font-mono text-[9px] w-8">NOR</span>
                 <div className="flex-1 flex h-3 gap-px">
-                  <div className="bg-[#e8002d] flex-[14]" title="SOFT L1-L14" />
-                  <div className="bg-[#ffd700] flex-[28]" title="MEDIUM L15-L42" />
-                  <div className="bg-[#333] flex-[21] border border-dashed border-[#555]" title="Projected L43-L63" />
+                  <div className="bg-[#e8002d] flex-[14]" title="SOFT L1–L14" />
+                  <div className="bg-[#ffd700] flex-[28]" title="MEDIUM L15–L42" />
+                  <div className="bg-[#333] flex-[15] border border-dashed border-[#555]" title="Projected" />
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[#444] font-mono text-[9px] w-8">LEC</span>
                 <div className="flex-1 flex h-3 gap-px">
-                  <div className="bg-[#ffffff] flex-[12]" title="HARD L1-L12" />
-                  <div className="bg-[#ffd700] flex-[30]" title="MEDIUM L13-L42" />
-                  <div className="bg-[#333] flex-[21] border border-dashed border-[#555]" title="Projected L43-L63" />
+                  <div className="bg-[#ffffff] flex-[12]" title="HARD L1–L12" />
+                  <div className="bg-[#ffd700] flex-[30]" title="MEDIUM L13–L42" />
+                  <div className="bg-[#333] flex-[15] border border-dashed border-[#555]" title="Projected" />
                 </div>
               </div>
-
-              {/* Stint legend */}
               <div className="flex items-center gap-3 mt-1">
                 <div className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#e8002d]" />
@@ -344,13 +322,13 @@ export default function LandingPage() {
             <span className="compound-dot" style={{ backgroundColor: "#ffd700" }} />
             <span className="compound-dot" style={{ backgroundColor: "#ffffff" }} />
           </div>
-          <h3 className="text-white text-sm font-semibold mb-2">Tyre Degradation</h3>
+          <h3 className="text-white text-sm font-semibold mb-2">Tyre Degradation Models</h3>
           <p className="text-[#666] text-xs leading-relaxed">
-            Quadratic curve fitting with R&#178; confidence scores. Captures tyre cliff behavior that linear models miss.
+            Piecewise linear fitting via <code className="text-[#888] text-[10px]">pwlf</code>. Captures cliff behavior and breakpoints with R² confidence. Fuel-corrected and temperature-aware.
           </p>
           <div className="mt-3 flex items-center gap-3">
             <span className="text-[#e8002d] font-mono text-[10px] font-bold">+0.087s/lap</span>
-            <span className="text-[#555] text-[10px] font-mono">avg deg SOFT</span>
+            <span className="text-[#555] text-[10px] font-mono">avg SOFT deg · Bahrain</span>
           </div>
         </div>
 
@@ -358,13 +336,13 @@ export default function LandingPage() {
           <div className="flex gap-1.5 mb-3">
             <span className="compound-dot" style={{ backgroundColor: "#e8002d" }} />
           </div>
-          <h3 className="text-white text-sm font-semibold mb-2">Undercut Detection</h3>
+          <h3 className="text-white text-sm font-semibold mb-2">Undercut & Overcut Detection</h3>
           <p className="text-[#666] text-xs leading-relaxed">
-            Threat scoring using position data, gap analysis, and degradation incentives for every rival on track.
+            Threat scoring per rival using gap, position, tyre age, and degradation incentive. Crossover lap computed via pit-loss vs delta-time tradeoff.
           </p>
           <div className="mt-3 flex items-center gap-3">
             <span className="text-[#ffd700] font-mono text-[10px] font-bold">THREAT: HIGH</span>
-            <span className="text-[#555] text-[10px] font-mono">NOR &rarr; VER gap 1.243s</span>
+            <span className="text-[#555] text-[10px] font-mono">NOR within 1.2s of VER</span>
           </div>
         </div>
 
@@ -373,13 +351,13 @@ export default function LandingPage() {
             <span className="compound-dot" style={{ backgroundColor: "#39b54a" }} />
             <span className="compound-dot" style={{ backgroundColor: "#0067ff" }} />
           </div>
-          <h3 className="text-white text-sm font-semibold mb-2">20+ Circuits</h3>
+          <h3 className="text-white text-sm font-semibold mb-2">FastF1 + OpenF1</h3>
           <p className="text-[#666] text-xs leading-relaxed">
-            Circuit-specific pit loss data and historical analysis spanning every season from 2018 to today.
+            Historical data via FastF1, live timing via OpenF1. Bayesian curve updating in real-time as laps come in. Every circuit from 2018 to today.
           </p>
           <div className="mt-3 flex items-center gap-3">
             <span className="text-[#39b54a] font-mono text-[10px] font-bold">22.4s</span>
-            <span className="text-[#555] text-[10px] font-mono">avg pit loss this circuit</span>
+            <span className="text-[#555] text-[10px] font-mono">avg pit loss · Bahrain</span>
           </div>
         </div>
 
@@ -388,12 +366,20 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-[#222] px-6 py-4 flex items-center justify-between shrink-0">
         <p className="text-[#333] text-[10px] tracking-wider uppercase">
-          Data sourced from FastF1 &amp; OpenF1
+          Data: FastF1 &amp; OpenF1 &middot; Built with Next.js + FastAPI
         </p>
         <div className="flex items-center gap-4">
-          <span className="text-[#333] text-[10px] font-mono">SESSION: R &middot; 2024</span>
-          <span className="text-[#333] text-[10px] tracking-wider uppercase">
-            Built for F1 strategy analysis
+          <a
+            href="https://github.com/amoghmerudi/Pit-Stop"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#333] hover:text-[#888] text-[10px] uppercase tracking-wider transition-colors"
+          >
+            GitHub
+          </a>
+          <span className="text-[#222] text-[10px]">|</span>
+          <span className="text-[#333] text-[10px] tracking-wider uppercase hidden sm:block">
+            Open source · MIT
           </span>
         </div>
       </footer>

@@ -1,0 +1,43 @@
+{
+  "id": "pitwall",
+  "title": "Pitwall",
+  "subtitle": "F1 pit strategy optimizer and race analytics dashboard",
+  "description": "A full-stack app that models tyre degradation from FastF1 data, computes undercut/overcut windows and rival threats, and surfaces live and historical pit recommendations through a telemetry-styled Next.js dashboard with OpenF1 live timing.",
+  "tech": [
+    "Python",
+    "FastAPI",
+    "pandas",
+    "Next.js",
+    "TypeScript",
+    "Tailwind CSS",
+    "Recharts"
+  ],
+  "image": "/projects/pitwall.png",
+  "architecture": [
+    "FastAPI backend owns all strategy math; frontend consumes typed REST only",
+    "ingestion.py loads FastF1 sessions (cached) and OpenF1 live feeds",
+    "degradation.py fits per-compound tyre delta curves with quality checks",
+    "pit_window.py computes crossover laps with circuit pit-loss adjustment",
+    "rival_model.py tracks competitor compounds and undercut threats",
+    "strategy.py merges pit windows and rivals into human-readable recommendations",
+    "Next.js App Router dashboard: charts, timing tower, live mode, head-to-head, what-if simulator"
+  ],
+  "results": [
+    {
+      "label": "Data",
+      "value": "FastF1 historical sessions + OpenF1 live grid and stints"
+    },
+    {
+      "label": "Strategy",
+      "value": "Pit windows, crossover laps, and undercut threat scoring"
+    },
+    {
+      "label": "UX",
+      "value": "Dark/light theme, share link, export, browser notifications in live mode"
+    },
+    {
+      "label": "Deploy",
+      "value": "Backend on Railway, frontend on Vercel"
+    }
+  ]
+}
