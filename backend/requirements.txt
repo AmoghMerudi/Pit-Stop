@@ -9,4 +9,5 @@ pydantic
 python-dotenv
 pytest
 pytest-mock
+httpx
 pwlf
