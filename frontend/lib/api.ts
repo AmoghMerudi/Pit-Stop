@@ -240,6 +240,23 @@ export function getRaceSummary(year: number, round: number): Promise<RaceSummary
   return apiFetch(`/race/${year}/${round}/summary`)
 }
 
+export interface RaceBundle {
+  drivers: DriverInfo[]
+  degradation: DegradationCurve[]
+  stints: StintInfo[]
+  positions: PositionHistoryPoint[]
+  laptimes: LapTimeStats[]
+  pitstops: PitStopInfo[]
+  weather: WeatherDataPoint[]
+  race_control: RaceControlEvent[]
+  summary: RaceSummary
+  total_laps: number
+}
+
+export function getBundle(year: number, round: number): Promise<RaceBundle> {
+  return apiFetch(`/race/${year}/${round}/bundle`)
+}
+
 export interface TyrePrediction {
   driver: string
   compound: string

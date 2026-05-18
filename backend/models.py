@@ -187,6 +187,25 @@ class RaceSummary(BaseModel):
     total_pit_stops: int = 0
 
 
+class RaceBundle(BaseModel):
+    """Aggregate of every race-wide panel the dashboard needs in one response.
+
+    Per-driver panels (strategy, gaps, sectors-by-lap) stay on their own
+    endpoints because the user can change driver and lap without reloading
+    the page.
+    """
+    drivers: list[DriverInfo]
+    degradation: list[DegradationCurve]
+    stints: list[StintInfo]
+    positions: list[PositionHistoryPoint]
+    laptimes: list[LapTimeStats]
+    pitstops: list[PitStopInfo]
+    weather: list[WeatherDataPoint]
+    race_control: list[RaceControlEvent]
+    summary: RaceSummary
+    total_laps: int
+
+
 class TyrePrediction(BaseModel):
     driver: str
     compound: str

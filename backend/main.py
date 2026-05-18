@@ -13,8 +13,9 @@ from benchmarks import load_baseline_curves
 from degradation import bayesian_update, find_cliff_lap, fuel_correct_laptimes
 from constants import COMPOUNDS, ROUND_TO_CIRCUIT, get_circuit_for_round
 from degradation import fit_all_compounds, resolve_driver_curves
-from ingestion import CURRENT_YEAR, OPENF1_BASE_URL, OPENF1_TIMEOUT, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_gap_evolution, get_live_intervals, get_live_laps, get_live_position_history, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_stints, get_total_laps, get_weather_data, load_session
-from models import DegradationCurve, DriverCurveResult, DriverInfo, ErrorResponse, GapEvolutionPoint, HealthResponse, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
+from ingestion import CURRENT_YEAR, OPENF1_BASE_URL, OPENF1_TIMEOUT, generate_race_summary, get_driver_statuses, get_gap_evolution, get_lap_time_stats, get_laps, get_live_drivers, get_live_gap_evolution, get_live_intervals, get_live_laps, get_live_position_history, get_live_positions, get_live_session_info, get_live_stints, get_pit_stops, get_position_history, get_race_control_events, get_race_state, get_sector_times, get_session_curves, get_session_laps, get_stints, get_total_laps, get_weather_data, load_session
+import precomputed_store
+from models import DegradationCurve, DriverCurveResult, DriverInfo, ErrorResponse, GapEvolutionPoint, HealthResponse, LapTimeStats, LiveDriverState, LiveSessionResponse, LiveStrategyResponse, ManualStrategyRequest, PitStopInfo, PositionHistoryPoint, RaceBundle, RaceControlEvent, RaceSummary, SectorTime, StintInfo, StrategyResponse, TyrePrediction, WeatherDataPoint, WhatIfResponse
 from rival_model import build_driver_states, build_live_driver_states
 from strategy import recommend
 
@@ -85,25 +86,69 @@ def get_schedule(year: int):
         raise HTTPException(status_code=500, detail="Could not load schedule")
 
 
+def _serialize_curves(all_curves: dict, primary: dict) -> list[DegradationCurve]:
+    """Translate fit_all_compounds output into the DegradationCurve response model."""
+    result: list[DegradationCurve] = []
+    for c, v in primary.items():
+        per_driver_data: dict[str, DriverCurveResult] | None = None
+        raw = all_curves.get(c, {})
+        if isinstance(raw, dict) and "_population" in raw:
+            per_driver_data = {}
+            for dk, dv in raw.items():
+                if dk.startswith("_"):
+                    continue
+                per_driver_data[dk] = DriverCurveResult(
+                    slope=dv.get("slope", 0.0),
+                    intercept=dv.get("intercept", 0.0),
+                    r2=dv.get("r2", 0.0),
+                    coeffs=dv.get("coeffs"),
+                    degree=dv.get("degree", 2),
+                    cliff_lap=dv.get("cliff_lap"),
+                    cliff_confidence=dv.get("cliff_confidence"),
+                    temp_coefficient=dv.get("temp_coefficient"),
+                    type=dv.get("type", "quadratic"),
+                )
+
+        result.append(DegradationCurve(
+            compound=c,
+            slope=v.get("slope", 0.0),
+            intercept=v.get("intercept", 0.0),
+            r2=v.get("r2", 0.0),
+            coeffs=v.get("coeffs"),
+            degree=v.get("degree", 2),
+            cliff_lap=v.get("cliff_lap"),
+            cliff_confidence=v.get("cliff_confidence"),
+            temp_coefficient=v.get("temp_coefficient"),
+            type=v.get("type", "quadratic"),
+            per_driver=per_driver_data,
+        ))
+    return result
+
+
+def _drivers_from_session(session) -> list[DriverInfo]:
+    drivers: list[DriverInfo] = []
+    for _, row in session.results.iterrows():
+        code = row.get("Abbreviation", "")
+        if not code:
+            continue
+        drivers.append(DriverInfo(
+            code=str(code),
+            name=str(row.get("FullName", code)),
+            team=str(row.get("TeamName", "")),
+            team_color=str(row.get("TeamColor", "555555")).lstrip("#"),
+            number=int(row.get("DriverNumber", 0)),
+        ))
+    return drivers
+
+
 @app.get("/race/{year}/{round_number}/drivers", response_model=list[DriverInfo])
 def get_drivers(year: int, round_number: int):
     """Return driver info (code, name, team, team color) for a race."""
+    bundle = precomputed_store.try_load_bundle(year, round_number)
+    if bundle is not None and "drivers" in bundle:
+        return bundle["drivers"]
     try:
-        session = load_session(year, round_number)
-        results = session.results
-        drivers = []
-        for _, row in results.iterrows():
-            code = row.get("Abbreviation", "")
-            if not code:
-                continue
-            drivers.append(DriverInfo(
-                code=str(code),
-                name=str(row.get("FullName", code)),
-                team=str(row.get("TeamName", "")),
-                team_color=str(row.get("TeamColor", "555555")).lstrip("#"),
-                number=int(row.get("DriverNumber", 0)),
-            ))
-        return drivers
+        return _drivers_from_session(load_session(year, round_number))
     except Exception as exc:
         logger.error("Error in /race/%d/%d/drivers: %s", year, round_number, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not load driver info")
@@ -111,57 +156,17 @@ def get_drivers(year: int, round_number: int):
 
 @app.get("/race/{year}/{round_number}/degradation", response_model=list[DegradationCurve])
 def get_degradation(year: int, round_number: int, driver: str | None = None):
+    # Short-circuit on precomputed bundle when no driver filter is requested
+    if driver is None:
+        bundle = precomputed_store.try_load_bundle(year, round_number)
+        if bundle is not None and "degradation" in bundle:
+            return bundle["degradation"]
     try:
-        session = load_session(year, round_number)
-        circuit = session.event.get("Location") if hasattr(session, "event") else None
-        laps = get_laps(session)
-        laps = fuel_correct_laptimes(laps)
-        try:
-            weather = get_weather_data(session)
-            weather_df = pd.DataFrame([w if isinstance(w, dict) else w.dict() for w in weather]) if weather else None
-        except Exception:
-            weather_df = None
-        all_curves = fit_all_compounds(laps, weather_df=weather_df, circuit_name=circuit)
-
+        all_curves = get_session_curves(year, round_number)
         if driver:
             driver = driver.upper()
         primary = resolve_driver_curves(all_curves, driver=driver)
-
-        result = []
-        for c, v in primary.items():
-            per_driver_data: dict[str, DriverCurveResult] | None = None
-            raw = all_curves.get(c, {})
-            if isinstance(raw, dict) and "_population" in raw:
-                per_driver_data = {}
-                for dk, dv in raw.items():
-                    if dk.startswith("_"):
-                        continue
-                    per_driver_data[dk] = DriverCurveResult(
-                        slope=dv.get("slope", 0.0),
-                        intercept=dv.get("intercept", 0.0),
-                        r2=dv.get("r2", 0.0),
-                        coeffs=dv.get("coeffs"),
-                        degree=dv.get("degree", 2),
-                        cliff_lap=dv.get("cliff_lap"),
-                        cliff_confidence=dv.get("cliff_confidence"),
-                        temp_coefficient=dv.get("temp_coefficient"),
-                        type=dv.get("type", "quadratic"),
-                    )
-
-            result.append(DegradationCurve(
-                compound=c,
-                slope=v.get("slope", 0.0),
-                intercept=v.get("intercept", 0.0),
-                r2=v.get("r2", 0.0),
-                coeffs=v.get("coeffs"),
-                degree=v.get("degree", 2),
-                cliff_lap=v.get("cliff_lap"),
-                cliff_confidence=v.get("cliff_confidence"),
-                temp_coefficient=v.get("temp_coefficient"),
-                type=v.get("type", "quadratic"),
-                per_driver=per_driver_data,
-            ))
-        return result
+        return _serialize_curves(all_curves, primary)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except HTTPException:
@@ -174,12 +179,17 @@ def get_degradation(year: int, round_number: int, driver: str | None = None):
 @app.get("/race/{year}/{round_number}/strategy/{driver}", response_model=StrategyResponse)
 def get_strategy(year: int, round_number: int, driver: str, lap: int | None = None):
     driver = driver.upper()
+    # Precomputed strategy is keyed on (driver, final lap) — only short-circuit when
+    # the caller is asking for the default final-lap view.
+    if lap is None:
+        cached = precomputed_store.try_load_strategy(year, round_number, driver)
+        if cached is not None:
+            return cached
     try:
         session = load_session(year, round_number)
         circuit = session.event.get("Location") if hasattr(session, "event") else None
-        laps = get_laps(session)
-        laps = fuel_correct_laptimes(laps)
-        all_curves = fit_all_compounds(laps, circuit_name=circuit)
+        laps = get_session_laps(year, round_number)
+        all_curves = get_session_curves(year, round_number)
         curves = resolve_driver_curves(all_curves, driver=driver)
         max_lap = int(laps["lap_number"].max())
         total_laps = get_total_laps(session)
@@ -203,6 +213,14 @@ def get_strategy(year: int, round_number: int, driver: str, lap: int | None = No
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def _bundle_slice(year: int, round_number: int, key: str):
+    """Return precomputed bundle[key] if available, else None."""
+    bundle = precomputed_store.try_load_bundle(year, round_number)
+    if bundle is None:
+        return None
+    return bundle.get(key)
+
+
 @app.get("/race/{year}/{round_number}/sectors", response_model=list[SectorTime])
 def get_sectors(year: int, round_number: int, lap: int = 1):
     try:
@@ -217,9 +235,11 @@ def get_sectors(year: int, round_number: int, lap: int = 1):
 
 @app.get("/race/{year}/{round_number}/weather", response_model=list[WeatherDataPoint])
 def get_weather(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "weather")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_weather_data(session)
+        return get_weather_data(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -230,9 +250,11 @@ def get_weather(year: int, round_number: int):
 @app.get("/race/{year}/{round_number}/gaps/{driver}", response_model=list[GapEvolutionPoint])
 def get_gaps(year: int, round_number: int, driver: str):
     driver = driver.upper()
+    cached = precomputed_store.try_load_gaps(year, round_number, driver)
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_gap_evolution(session, driver)
+        return get_gap_evolution(load_session(year, round_number), driver)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -242,9 +264,11 @@ def get_gaps(year: int, round_number: int, driver: str):
 
 @app.get("/race/{year}/{round_number}/race-control", response_model=list[RaceControlEvent])
 def get_race_control(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "race_control")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_race_control_events(session)
+        return get_race_control_events(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -254,9 +278,11 @@ def get_race_control(year: int, round_number: int):
 
 @app.get("/race/{year}/{round_number}/stints", response_model=list[StintInfo])
 def get_race_stints(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "stints")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_stints(session)
+        return get_stints(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -266,9 +292,11 @@ def get_race_stints(year: int, round_number: int):
 
 @app.get("/race/{year}/{round_number}/positions", response_model=list[PositionHistoryPoint])
 def get_positions(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "positions")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_position_history(session)
+        return get_position_history(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -278,9 +306,11 @@ def get_positions(year: int, round_number: int):
 
 @app.get("/race/{year}/{round_number}/laptimes", response_model=list[LapTimeStats])
 def get_laptimes(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "laptimes")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_lap_time_stats(session)
+        return get_lap_time_stats(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -290,9 +320,11 @@ def get_laptimes(year: int, round_number: int):
 
 @app.get("/race/{year}/{round_number}/pitstops", response_model=list[PitStopInfo])
 def get_pitstops(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "pitstops")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return get_pit_stops(session)
+        return get_pit_stops(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -302,13 +334,51 @@ def get_pitstops(year: int, round_number: int):
 
 @app.get("/race/{year}/{round_number}/summary", response_model=RaceSummary)
 def get_summary(year: int, round_number: int):
+    cached = _bundle_slice(year, round_number, "summary")
+    if cached is not None:
+        return cached
     try:
-        session = load_session(year, round_number)
-        return generate_race_summary(session)
+        return generate_race_summary(load_session(year, round_number))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         logger.error("Error in /race/%d/%d/summary: %s", year, round_number, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/race/{year}/{round_number}/bundle", response_model=RaceBundle)
+def get_bundle(year: int, round_number: int):
+    """
+    One-shot endpoint returning every panel the dashboard needs except the
+    per-driver views (strategy, gaps, sectors). Serves precomputed JSON when
+    available; otherwise builds it live from a single FastF1 session load.
+    """
+    cached = precomputed_store.try_load_bundle(year, round_number)
+    if cached is not None:
+        return cached
+
+    try:
+        session = load_session(year, round_number)
+        all_curves = get_session_curves(year, round_number)
+        primary = resolve_driver_curves(all_curves, driver=None)
+        degradation = _serialize_curves(all_curves, primary)
+
+        return RaceBundle(
+            drivers=_drivers_from_session(session),
+            degradation=degradation,
+            stints=get_stints(session),
+            positions=get_position_history(session),
+            laptimes=get_lap_time_stats(session),
+            pitstops=get_pit_stops(session),
+            weather=get_weather_data(session),
+            race_control=get_race_control_events(session),
+            summary=generate_race_summary(session),
+            total_laps=get_total_laps(session),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error in /race/%d/%d/bundle: %s", year, round_number, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -320,9 +390,8 @@ def what_if(year: int, round_number: int, driver: str, pit_lap: int = 1, new_com
     try:
         session = load_session(year, round_number)
         circuit = session.event.get("Location") if hasattr(session, "event") else None
-        laps = get_laps(session)
-        laps = fuel_correct_laptimes(laps)
-        all_curves = fit_all_compounds(laps, circuit_name=circuit)
+        laps = get_session_laps(year, round_number)
+        all_curves = get_session_curves(year, round_number)
         curves = resolve_driver_curves(all_curves, driver=driver)
         total_laps = get_total_laps(session)
         max_lap = int(laps["lap_number"].max())

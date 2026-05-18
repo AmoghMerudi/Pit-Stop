@@ -25,11 +25,24 @@ fastf1.Cache.enable_cache(CACHE_DIR)
 
 CURRENT_YEAR = date.today().year
 
-# In-memory session cache with lock to prevent parallel loads from
+# In-memory caches with lock to prevent parallel loads from
 # crashing the server on memory-constrained free tiers.
 _session_cache: dict[tuple[int, int], fastf1.core.Session] = {}
+_laps_cache: dict[tuple[int, int], pd.DataFrame] = {}
+_curves_cache: dict[tuple[int, int], dict] = {}
 _session_lock = threading.Lock()
-_SESSION_CACHE_MAX = 1  # keep at most 1 session in memory (Render free tier ~512MB)
+# Keep up to 3 recent sessions in memory — each session is ~30-50MB,
+# comfortably below the 512MB free-tier ceiling and removes the per-click
+# reload penalty when the user switches races.
+_SESSION_CACHE_MAX = 3
+
+
+def _evict_session(key: tuple[int, int]) -> None:
+    """Drop all cached artifacts for a (year, round) so memory is reclaimed together."""
+    _session_cache.pop(key, None)
+    _laps_cache.pop(key, None)
+    _curves_cache.pop(key, None)
+    gc.collect()
 
 
 def load_session(year: int, round_number: int) -> fastf1.core.Session:
@@ -55,13 +68,71 @@ def load_session(year: int, round_number: int) -> fastf1.core.Session:
         session.load(telemetry=False)
 
         # Evict oldest if cache is full
-        if len(_session_cache) >= _SESSION_CACHE_MAX:
+        while len(_session_cache) >= _SESSION_CACHE_MAX:
             oldest = next(iter(_session_cache))
-            del _session_cache[oldest]
-            gc.collect()  # Force garbage collection to free memory immediately
+            _evict_session(oldest)
 
         _session_cache[key] = session
         return session
+
+
+def get_session_laps(year: int, round_number: int) -> pd.DataFrame:
+    """
+    Return the fuel-corrected laps DataFrame for a race, cached per (year, round).
+
+    Combines `load_session → get_laps → fuel_correct_laptimes` into one memoised
+    call so /degradation, /strategy, /what-if and /bundle share a single parse.
+    """
+    # Local import to avoid a circular import at module load
+    # (degradation.py imports from ingestion).
+    from degradation import fuel_correct_laptimes
+
+    key = (year, round_number)
+    if key in _laps_cache:
+        return _laps_cache[key]
+
+    with _session_lock:
+        if key in _laps_cache:
+            return _laps_cache[key]
+        session = load_session(year, round_number)
+        df = fuel_correct_laptimes(get_laps(session))
+        _laps_cache[key] = df
+        return df
+
+
+def get_session_curves(year: int, round_number: int) -> dict:
+    """
+    Return the fitted-degradation curves for a race, cached per (year, round).
+
+    Always fits per-driver and always includes the weather covariate so a single
+    cached result satisfies both /degradation (which exposes temp_coefficient)
+    and /strategy (which only uses slope/intercept). Eliminates the duplicate
+    pwlf piecewise fit that previously ran on every page view.
+    """
+    from degradation import fit_all_compounds
+
+    key = (year, round_number)
+    if key in _curves_cache:
+        return _curves_cache[key]
+
+    with _session_lock:
+        if key in _curves_cache:
+            return _curves_cache[key]
+
+        session = load_session(year, round_number)
+        laps = get_session_laps(year, round_number)
+        circuit = session.event.get("Location") if hasattr(session, "event") else None
+        try:
+            weather = get_weather_data(session)
+            weather_df = pd.DataFrame(weather) if weather else None
+        except Exception:
+            weather_df = None
+
+        curves = fit_all_compounds(
+            laps, weather_df=weather_df, circuit_name=circuit, fit_per_driver=True,
+        )
+        _curves_cache[key] = curves
+        return curves
 
 
 def get_total_laps(session: fastf1.core.Session) -> int:

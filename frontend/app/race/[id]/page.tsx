@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { getDegradation, getStrategy, getSectors, getWeather, getGapEvolution, getRaceControl, getStints, getPositions, getLapTimes, getPitStops, getRaceSummary, getDrivers } from "@/lib/api"
+import { getBundle, getStrategy, getSectors, getGapEvolution } from "@/lib/api"
 import type { DegradationCurve, StrategyResponse, SectorTime, WeatherDataPoint, GapEvolutionPoint, RaceControlEvent, StintInfo, PositionHistoryPoint, LapTimeStats, PitStopInfo, RaceSummary as RaceSummaryType, DriverInfo } from "@/lib/api"
 import DegradationChart from "@/components/DegradationChart"
 import TimingTower from "@/components/TimingTower"
@@ -95,35 +95,41 @@ export default function RacePage({ params }: PageProps) {
 
     setActiveDriver(driver)
 
-    // Phase 1: critical data — render page as soon as these resolve
+    // Phase 1: bundle + per-driver strategy + per-driver gaps in parallel.
+    // The bundle replaces 9 separate race-wide endpoints (degradation,
+    // drivers, stints, positions, laptimes, pitstops, weather,
+    // race-control, summary) with a single backend session load.
     Promise.all([
-      getDegradation(year, round),
+      getBundle(year, round),
       getStrategy(year, round, driver),
-      getDrivers(year, round).catch(() => [] as DriverInfo[]),
+      getGapEvolution(year, round, driver).catch(() => [] as GapEvolutionPoint[]),
     ])
-      .then(([degradationData, strategyData, driversData]) => {
-        setCurves(degradationData)
+      .then(([bundle, strategyData, gapsData]) => {
+        setCurves(bundle.degradation)
+        setDriverInfo(bundle.drivers)
+        setStints(bundle.stints)
+        setPositions(bundle.positions)
+        setLapTimes(bundle.laptimes)
+        setPitStops(bundle.pitstops)
+        setWeather(bundle.weather)
+        setRaceControl(bundle.race_control)
+        setSummary(bundle.summary)
+
         setStrategy(strategyData)
-        setDriverInfo(driversData)
-        const tl = strategyData.total_laps ?? strategyData.current_lap ?? 57
+        setGaps(gapsData)
+
+        const tl = bundle.total_laps ?? strategyData.total_laps ?? strategyData.current_lap ?? 57
         const cl = strategyData.current_lap ?? tl
         setTotalLaps(tl)
         setSelectedLap(cl)
         setLoading(false)
 
-        // Phase 2: secondary data — load in background after page is visible
+        // Phase 2: sectors — depends on selected lap, so it stays separate
         setSecondaryLoading(true)
-        Promise.allSettled([
-          getSectors(year, round, cl).then(setSectors),
-          getWeather(year, round).then(setWeather),
-          getGapEvolution(year, round, driver).then(setGaps),
-          getRaceControl(year, round).then(setRaceControl),
-          getStints(year, round).then(setStints),
-          getPositions(year, round).then(setPositions),
-          getLapTimes(year, round).then(setLapTimes),
-          getPitStops(year, round).then(setPitStops),
-          getRaceSummary(year, round).then(setSummary),
-        ]).finally(() => setSecondaryLoading(false))
+        getSectors(year, round, cl)
+          .then(setSectors)
+          .catch(() => {})
+          .finally(() => setSecondaryLoading(false))
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "An unexpected error occurred"
