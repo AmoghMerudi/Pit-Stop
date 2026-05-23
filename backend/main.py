@@ -527,6 +527,39 @@ def live_manual_strategy(body: ManualStrategyRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+_SESSION_CATEGORY_MAP: dict[str, str] = {
+    "Race":              "race",
+    "Sprint":            "sprint",
+    "Sprint Qualifying": "sprint_qualifying",
+    "Sprint Shootout":   "sprint_qualifying",
+    "Qualifying":        "qualifying",
+    "Practice 1":        "practice",
+    "Practice 2":        "practice",
+    "Practice 3":        "practice",
+}
+
+
+def _detect_qualifying_segment(session_key: int | None) -> int | None:
+    """
+    Attempt to identify whether we're in Q1, Q2, or Q3.
+    OpenF1 returns driver counts and can give us a rough answer: Q3 has 10
+    drivers, Q2 has 15, Q1 has all 20.  Falls back to None on any error.
+    """
+    if session_key is None:
+        return None
+    try:
+        from ingestion import get_live_drivers
+        drivers = get_live_drivers(session_key)
+        n = len(drivers)
+        if n <= 10:
+            return 3
+        if n <= 15:
+            return 2
+        return 1
+    except Exception:
+        return None
+
+
 @app.get("/live/session", response_model=LiveSessionResponse)
 def live_session():
     """Check if a live F1 session is active and return its metadata."""
@@ -534,17 +567,20 @@ def live_session():
     if not info:
         return LiveSessionResponse(active=False)
 
-    # Determine year and round from session info
     year = info.get("year")
     session_type = info.get("session_type")
     circuit = info.get("circuit_short_name")
     country = info.get("country_name")
     session_key = info.get("session_key")
 
-    # Only consider Race sessions as "active" for strategy
-    is_race = session_type == "Race" if session_type else False
+    # Active for any recognised session type
+    is_active = bool(session_type and session_type in _SESSION_CATEGORY_MAP)
+    session_category = _SESSION_CATEGORY_MAP.get(session_type or "", "race")
 
-    # Try to find round number from our mapping
+    qualifying_segment: int | None = None
+    if session_category == "qualifying":
+        qualifying_segment = _detect_qualifying_segment(session_key)
+
     round_number = None
     if year:
         for (y, r), c in ROUND_TO_CIRCUIT.items():
@@ -553,9 +589,11 @@ def live_session():
                 break
 
     return LiveSessionResponse(
-        active=is_race,
+        active=is_active,
         session_key=session_key,
         session_type=session_type,
+        session_category=session_category,
+        qualifying_segment=qualifying_segment,
         circuit=circuit,
         country=country,
         year=year,
@@ -619,6 +657,15 @@ def live_strategy(driver: str, year: int | None = None, round: int | None = None
             info = get_live_session_info("latest")
             if not info:
                 raise HTTPException(status_code=503, detail="No active live session")
+            # Strategy is only meaningful for race/sprint sessions
+            session_type = info.get("session_type", "")
+            session_cat = _SESSION_CATEGORY_MAP.get(session_type, "race")
+            if session_cat not in ("race", "sprint"):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Pit strategy is not applicable during {session_type} sessions. "
+                           "Use /live/manual-strategy for what-if simulation.",
+                )
             year = year or info.get("year", CURRENT_YEAR)
             if round is None:
                 circuit = info.get("circuit_short_name", "")

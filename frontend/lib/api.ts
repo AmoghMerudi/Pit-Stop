@@ -305,6 +305,8 @@ export interface LiveSessionInfo {
   active: boolean
   session_key: number | null
   session_type: string | null
+  session_category: string           // "race" | "qualifying" | "practice" | "sprint" | "sprint_qualifying"
+  qualifying_segment: number | null  // 1 | 2 | 3 when detectable, else null
   circuit: string | null
   country: string | null
   year: number | null
