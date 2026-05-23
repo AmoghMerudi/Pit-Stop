@@ -36,7 +36,8 @@ export default function LiveTicker() {
           currentLap = Math.max(...laps.map((l) => l.lap_number))
         }
 
-        const totalLaps = 57
+        // Total laps only meaningful for race sessions
+        const totalLaps = session.session_category === "race" ? 57 : 0
 
         let compound: string | null = null
         let stintLap: number | null = null
@@ -81,7 +82,15 @@ export default function LiveTicker() {
         <span className="text-[var(--text-section)] text-[10px] uppercase tracking-widest font-mono">
           {session.session_type ?? "Race"}
         </span>
-        {currentLap > 0 && (
+        {session.session_category === "qualifying" && session.qualifying_segment && (
+          <>
+            <span className="text-[var(--text-muted)] text-[10px]">|</span>
+            <span className="text-[#ffd700] text-[10px] uppercase tracking-widest font-mono font-bold">
+              Q{session.qualifying_segment}
+            </span>
+          </>
+        )}
+        {currentLap > 0 && session.session_category === "race" && (
           <>
             <span className="text-[var(--text-muted)] text-[10px]">|</span>
             <span className="text-[var(--text-section)] text-[10px] uppercase tracking-widest font-mono">

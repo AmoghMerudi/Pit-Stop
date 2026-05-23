@@ -115,9 +115,10 @@ export default function LivePage() {
     return () => clearInterval(interval)
   }, [refresh])
 
-  // Auto-refresh strategy for selected driver
+  // Auto-refresh strategy for selected driver — race only
   useEffect(() => {
     if (!selectedDriver || !session?.active) return
+    if (session.session_category !== "race" && session.session_category !== "sprint") return
 
     let mounted = true
 
@@ -184,7 +185,7 @@ export default function LivePage() {
     )
   }
 
-  // No active race session
+  // No active session at all
   if (!session?.active) {
     return (
       <div className="h-screen flex flex-col bg-[var(--surface)]">
@@ -204,15 +205,131 @@ export default function LivePage() {
         </header>
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <div className="w-3 h-3 rounded-full bg-[var(--border)]" />
-          <p className="text-[var(--text-muted)] text-sm">No active race session</p>
+          <p className="text-[var(--text-muted)] text-sm">No active session</p>
           <p className="text-[var(--text-dim)] text-xs max-w-xs text-center">
-            Live analysis is available during F1 race sessions. Check back when a race is underway.
+            Live analysis is available during F1 race, qualifying, and practice sessions.
           </p>
           <Link
             href="/"
             className="mt-4 text-[#e8002d] hover:text-[var(--text-primary)] text-xs font-bold uppercase tracking-widest transition-colors"
           >
             Analyze a past race instead
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Qualifying / Practice dashboard
+  const isQualifying = session.session_category === "qualifying"
+  const isPractice = session.session_category === "practice"
+  if (isQualifying || isPractice) {
+    const segLabel = isQualifying
+      ? (session.qualifying_segment ? `Q${session.qualifying_segment}` : "Qualifying")
+      : (session.session_type ?? "Practice")
+
+    return (
+      <div className="h-screen flex flex-col bg-[var(--surface)]">
+        {/* Header */}
+        <header className="h-12 flex items-center justify-between px-4 border-b border-[var(--border)] shrink-0">
+          <Link href="/" className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs transition-colors">
+            <span aria-hidden="true">&#8592;</span> Back
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-[#e8002d] font-bold text-sm" aria-hidden="true">&#9646;</span>
+            <span className="text-[var(--text-primary)] font-semibold text-sm tracking-tight">PITWALL</span>
+            <span className="text-[var(--text-muted)] text-xs font-mono ml-2">LIVE</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <LiveSessionBadge />
+            <ThemeToggle />
+          </div>
+        </header>
+
+        {/* Session info bar */}
+        <div className="px-4 py-2 border-b border-[var(--border)] flex items-center gap-4 shrink-0">
+          <span className="text-[var(--text-primary)] text-sm font-semibold">{session.circuit}</span>
+          {session.country && <span className="text-[var(--text-muted)] text-xs">{session.country}</span>}
+          <span
+            className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
+              isQualifying ? "bg-[#ffd700]/10 text-[#ffd700]" : "text-[var(--text-section)]"
+            }`}
+          >
+            {segLabel}
+          </span>
+          {session.year && session.round && (
+            <span className="text-[var(--text-muted)] text-xs font-mono">
+              {session.year} R{session.round}
+            </span>
+          )}
+          <span className="ml-auto text-[var(--text-dim)] text-[10px] font-mono">
+            Auto-refresh {POLL_INTERVAL / 1000}s
+          </span>
+        </div>
+
+        {/* Driver grid — tyre compounds */}
+        <div className="border-b border-[var(--border)] px-4 py-3 shrink-0">
+          <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
+            {isQualifying ? "Qualifying Grid" : "Drivers on Track"}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {grid.map((d) => (
+              <div
+                key={d.driver}
+                className="px-2.5 py-1.5 text-xs font-mono font-bold border border-[var(--border)] text-[var(--text-secondary)]"
+              >
+                <span className="mr-1.5 text-[var(--text-muted)] font-normal">P{d.position || "?"}</span>
+                {d.driver}
+                <span className={`ml-1.5 text-[10px] ${COMPOUND_COLOURS[d.compound] ?? "text-[var(--text-muted)]"}`}>
+                  {d.compound?.charAt(0)}
+                </span>
+                <span className="ml-1 text-[9px] text-[var(--text-dim)] font-normal">
+                  {d.tyre_age}L
+                </span>
+              </div>
+            ))}
+            {grid.length === 0 && (
+              <span className="text-[var(--text-muted)] text-xs">Waiting for timing data...</span>
+            )}
+          </div>
+        </div>
+
+        {/* Tyre usage summary */}
+        {predictions.length > 0 && (
+          <div className="px-4 py-3 border-b border-[var(--border)]">
+            <p className="text-[10px] font-medium text-[var(--text-section)] uppercase tracking-widest mb-2">
+              Tyre Usage
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {(["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"] as const).map((c) => {
+                const count = grid.filter((d) => d.compound === c).length
+                if (count === 0) return null
+                return (
+                  <div key={c} className="flex items-center gap-1.5 text-xs">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: COMPOUND_HEX[c] ?? "#555" }}
+                    />
+                    <span className="text-[var(--text-secondary)] font-mono">{c}</span>
+                    <span className="text-[var(--text-muted)]">×{count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Info notice */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+          <p className="text-[var(--text-muted)] text-xs max-w-sm">
+            Pit stop strategy analysis is available during race sessions.
+            Use manual strategy simulation to plan race setups from qualifying results.
+          </p>
+          <Link
+            href="/"
+            className="text-[#e8002d] hover:text-[var(--text-primary)] text-xs font-bold uppercase tracking-widest transition-colors"
+          >
+            Analyze a past race →
           </Link>
         </div>
       </div>

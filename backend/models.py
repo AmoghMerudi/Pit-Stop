@@ -198,7 +198,9 @@ class TyrePrediction(BaseModel):
 class LiveSessionResponse(BaseModel):
     active: bool
     session_key: int | None = None
-    session_type: str | None = None  # "Race", "Qualifying", etc.
+    session_type: str | None = None      # "Race", "Qualifying", "Practice 1", etc.
+    session_category: str = "race"       # "race" | "qualifying" | "practice" | "sprint" | "sprint_qualifying"
+    qualifying_segment: int | None = None  # 1, 2, or 3 when detectable
     circuit: str | None = None
     country: str | None = None
     year: int | None = None
