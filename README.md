@@ -159,7 +159,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ```
 FastF1 (historical) ──┐
-                       ├──> Python Backend (FastAPI) ──> REST API ──> Next.js Dashboard
+                      ├──> Python Backend (FastAPI) ──> REST API ──> Next.js Dashboard
 OpenF1 (live)    ─────┘         |                                        |
                           degradation.py                          Recharts + Tailwind
                           pit_window.py                           Dark/light theme
